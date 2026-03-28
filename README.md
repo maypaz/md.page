@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://md.page/logo.svg" alt="# md.page" height="50">
+  <img src="assets/logo.svg" alt="# md.page" height="50">
 </p>
 
 <h3 align="center">Markdown in, beautiful page out.</h3>
