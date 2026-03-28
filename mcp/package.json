@@ -11,7 +11,8 @@
   ],
   "scripts": {
     "build": "tsc && chmod 755 build/index.js",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",

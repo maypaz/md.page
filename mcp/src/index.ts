@@ -23,7 +23,7 @@ interface ErrorResponse {
 server.tool(
   "publish_markdown",
   "Publish markdown as a beautiful, shareable web page on md.page. Returns a short URL that expires in 24 hours. Use this whenever you need to share formatted content as a web page.",
-  { markdown: z.string().describe("The markdown content to publish") },
+  { markdown: z.string().min(1).describe("The markdown content to publish") },
   async ({ markdown }) => {
     try {
       const response = await fetch(`${BASE_URL}/api/publish`, {
@@ -33,19 +33,20 @@ server.tool(
       });
 
       if (!response.ok) {
-        const error = (await response.json()) as ErrorResponse;
-        const messages: Record<number, string> = {
-          400: error.error || "Invalid markdown content.",
-          413: "Content too large. Maximum size is 500KB.",
-          429: "Rate limit exceeded. Try again later (max 60 pages/hour).",
-        };
+        let errorMessage: string;
+        try {
+          const error = (await response.json()) as ErrorResponse;
+          const messages: Record<number, string> = {
+            400: error.error || "Invalid markdown content.",
+            413: "Content too large. Maximum size is 500KB.",
+            429: "Rate limit exceeded. Try again later (max 60 pages/hour).",
+          };
+          errorMessage = messages[response.status] || `Publishing failed: ${error.error || response.statusText}`;
+        } catch {
+          errorMessage = `Publishing failed (HTTP ${response.status}).`;
+        }
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: messages[response.status] || `Publishing failed: ${error.error || response.statusText}`,
-            },
-          ],
+          content: [{ type: "text" as const, text: errorMessage }],
           isError: true,
         };
       }
