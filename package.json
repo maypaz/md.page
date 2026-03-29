@@ -26,6 +26,7 @@
     "wrangler": "^4.77.0"
   },
   "dependencies": {
+    "@cf-wasm/resvg": "^0.3.3",
     "@types/markdown-it": "^14.1.2",
     "markdown-it": "^14.1.1"
   }
