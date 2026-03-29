@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { env, exports } from "cloudflare:workers";
-import { generateId, extractMeta, escapeHtml, stripMarkdownInline } from "./index";
+import { generateId, extractMeta, escapeHtml, stripMarkdownInline, wrapText, parseMarkdownBlocks, generateOgSvg } from "./index";
 
 declare module "cloudflare:workers" {
   namespace Cloudflare {
@@ -155,6 +155,146 @@ describe("stripMarkdownInline", () => {
 
   it("returns plain text unchanged", () => {
     expect(stripMarkdownInline("Just plain text")).toBe("Just plain text");
+  });
+});
+
+describe("wrapText", () => {
+  it("wraps long text at word boundaries", () => {
+    const lines = wrapText("The quick brown fox jumps over the lazy dog", 20);
+    expect(lines[0]).toBe("The quick brown fox");
+    expect(lines[1]).toBe("jumps over the lazy");
+    expect(lines[2]).toBe("dog");
+  });
+
+  it("respects maxLines parameter", () => {
+    const lines = wrapText("one two three four five six seven eight", 10, 2);
+    expect(lines).toHaveLength(2);
+  });
+
+  it("returns empty array for empty string", () => {
+    expect(wrapText("", 50)).toEqual([]);
+  });
+
+  it("keeps short text on a single line", () => {
+    expect(wrapText("hello", 50)).toEqual(["hello"]);
+  });
+
+  it("handles a single long word that exceeds maxCharsPerLine", () => {
+    const lines = wrapText("supercalifragilistic", 10);
+    expect(lines).toEqual(["supercalifragilistic"]);
+  });
+
+  it("defaults maxLines to 3", () => {
+    const lines = wrapText("a b c d e f g h i j k l m n o p", 5);
+    expect(lines).toHaveLength(3);
+  });
+});
+
+describe("parseMarkdownBlocks", () => {
+  it("skips h1 headings (used as title)", () => {
+    const blocks = parseMarkdownBlocks("# Title\nSome text");
+    expect(blocks.every(b => !(b.type === "heading" && b.text === "Title"))).toBe(true);
+  });
+
+  it("parses h2-h6 as heading blocks", () => {
+    const blocks = parseMarkdownBlocks("## Section\n### Subsection");
+    expect(blocks).toEqual([
+      { type: "heading", text: "Section" },
+      { type: "heading", text: "Subsection" },
+    ]);
+  });
+
+  it("parses paragraphs", () => {
+    const blocks = parseMarkdownBlocks("Hello world.\nStill the same paragraph.");
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].type).toBe("paragraph");
+    expect(blocks[0]).toHaveProperty("text", "Hello world. Still the same paragraph.");
+  });
+
+  it("parses fenced code blocks", () => {
+    const md = "```js\nconst x = 1;\nconsole.log(x);\n```";
+    const blocks = parseMarkdownBlocks(md);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].type).toBe("code");
+    expect(blocks[0]).toHaveProperty("lines", ["const x = 1;", "console.log(x);"]);
+  });
+
+  it("limits code blocks to 4 lines", () => {
+    const md = "```\nline1\nline2\nline3\nline4\nline5\nline6\n```";
+    const blocks = parseMarkdownBlocks(md);
+    expect(blocks[0]).toHaveProperty("lines");
+    expect((blocks[0] as { type: "code"; lines: string[] }).lines).toHaveLength(4);
+  });
+
+  it("parses unordered lists", () => {
+    const md = "- item one\n- item two\n- item three";
+    const blocks = parseMarkdownBlocks(md);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].type).toBe("list");
+    expect(blocks[0]).toHaveProperty("items", ["item one", "item two", "item three"]);
+  });
+
+  it("parses mixed content in order", () => {
+    const md = "## Intro\nSome text\n```\ncode\n```\n- a\n- b";
+    const blocks = parseMarkdownBlocks(md);
+    expect(blocks.map(b => b.type)).toEqual(["heading", "paragraph", "code", "list"]);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(parseMarkdownBlocks("")).toEqual([]);
+  });
+
+  it("strips inline markdown from headings and paragraphs", () => {
+    const blocks = parseMarkdownBlocks("## **Bold** heading\nA [link](url) here.");
+    expect(blocks[0]).toHaveProperty("text", "Bold heading");
+    expect(blocks[1]).toHaveProperty("text", "A link here.");
+  });
+});
+
+describe("generateOgSvg", () => {
+  it("returns a valid SVG string", () => {
+    const svg = generateOgSvg("Test Title", "Some body text");
+    expect(svg).toContain("<svg");
+    expect(svg).toContain("</svg>");
+    expect(svg).toContain('width="1200"');
+    expect(svg).toContain('height="630"');
+  });
+
+  it("includes the title in the SVG", () => {
+    const svg = generateOgSvg("My Document", "Body");
+    expect(svg).toContain("My Document");
+  });
+
+  it("includes the md.page branding", () => {
+    const svg = generateOgSvg("Title", "Body");
+    expect(svg).toContain("md.page");
+  });
+
+  it("escapes HTML entities in title", () => {
+    const svg = generateOgSvg('A "tricky" <title>', "Body");
+    expect(svg).toContain("&quot;tricky&quot;");
+    expect(svg).toContain("&lt;title&gt;");
+    expect(svg).not.toContain('<title>');
+  });
+
+  it("renders code blocks as dark rectangles", () => {
+    const md = "## Heading\n```\nconst x = 1;\n```";
+    const svg = generateOgSvg("Title", md);
+    expect(svg).toContain('fill="#1e1e1e"');
+    expect(svg).toContain("const x = 1;");
+  });
+
+  it("renders list items with bullet points", () => {
+    const md = "- first\n- second";
+    const svg = generateOgSvg("Title", md);
+    expect(svg).toContain("\u2022");
+    expect(svg).toContain("first");
+    expect(svg).toContain("second");
+  });
+
+  it("handles plain text (non-markdown) as a paragraph", () => {
+    const svg = generateOgSvg("Title", "Just plain text without newlines");
+    expect(svg).toContain("Just plain text without newlines");
   });
 });
 
@@ -389,6 +529,15 @@ describe("Worker", () => {
       expect(html).toContain('og:url" content="https://md.page/oGrL01"');
     });
 
+    it("sets og:type to article for published pages", async () => {
+      await env.PAGES.put("tYpE01", JSON.stringify({ html: "<p>Test</p>\n", title: "Test", description: "Test" }));
+      const res = await exports.default.fetch(
+        new Request("https://md.page/tYpE01")
+      );
+      const html = await res.text();
+      expect(html).toContain('og:type" content="article"');
+    });
+
     it("derives og:image and og:url from request origin for self-hosted instances", async () => {
       await env.PAGES.put("sElF01", JSON.stringify({ html: "<p>Test</p>\n", title: "Test", description: "Test" }));
       const res = await exports.default.fetch(
@@ -397,6 +546,44 @@ describe("Worker", () => {
       const html = await res.text();
       expect(html).toContain('og:image" content="https://docs.mycompany.com/og/sElF01.png"');
       expect(html).toContain('og:url" content="https://docs.mycompany.com/sElF01"');
+    });
+  });
+
+  // -- Dynamic OG images ---------------------------------------------------
+
+  describe("GET /og/:id.png", () => {
+    it("returns 404 with fallback PNG for non-existent page", async () => {
+      const res = await exports.default.fetch(
+        new Request("https://md.page/og/nopeXX.png")
+      );
+      expect(res.status).toBe(404);
+      expect(res.headers.get("Content-Type")).toBe("image/png");
+      const body = await res.arrayBuffer();
+      expect(body.byteLength).toBeGreaterThan(0);
+    });
+
+    it("returns PNG for existing page (falls back to static in test env where WASM is unavailable)", async () => {
+      await env.PAGES.put("oGiMg1", JSON.stringify({
+        html: "<h1>Hello</h1>\n",
+        title: "Hello",
+        description: "A test page",
+        markdownPreview: "# Hello\nA test page",
+      }));
+      const res = await exports.default.fetch(
+        new Request("https://md.page/og/oGiMg1.png")
+      );
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("image/png");
+      const body = await res.arrayBuffer();
+      expect(body.byteLength).toBeGreaterThan(0);
+    });
+
+    it("ignores non-GET methods", async () => {
+      await env.PAGES.put("oGiMg2", JSON.stringify({ html: "<p>Test</p>", title: "Test", description: "Test" }));
+      const res = await exports.default.fetch(
+        new Request("https://md.page/og/oGiMg2.png", { method: "POST" })
+      );
+      expect(res.status).toBe(404);
     });
   });
 
@@ -420,18 +607,6 @@ describe("Worker", () => {
     it("returns SVG with caching headers", async () => {
       const res = await exports.default.fetch(
         new Request("https://md.page/favicon.svg")
-      );
-      expect(res.status).toBe(200);
-      expect(res.headers.get("Content-Type")).toBe("image/svg+xml");
-      expect(res.headers.get("Cache-Control")).toContain("max-age=86400");
-      expect(await res.text()).toContain("<svg");
-    });
-  });
-
-  describe("GET /og-image.svg", () => {
-    it("returns SVG with caching headers", async () => {
-      const res = await exports.default.fetch(
-        new Request("https://md.page/og-image.svg")
       );
       expect(res.status).toBe(200);
       expect(res.headers.get("Content-Type")).toBe("image/svg+xml");
