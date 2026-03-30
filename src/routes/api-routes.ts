@@ -24,17 +24,6 @@ export function registerApiRoutes(router: Router): void {
   });
 
   router.add("POST", "/api/publish", async ({ request, services, url }) => {
-    const clientIp = request.headers.get("CF-Connecting-IP") ?? "unknown";
-
-    try {
-      await services.pages.enforcePublishRateLimit(clientIp);
-    } catch {
-      return json(
-        { error: "Rate limit exceeded. Max 60 pages per hour." },
-        { status: 429, headers: CORS_HEADERS },
-      );
-    }
-
     let body: { markdown?: unknown };
     try {
       body = await readJson(request);

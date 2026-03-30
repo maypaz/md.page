@@ -28,6 +28,6 @@
 
 ## Operational policies
 
-- Publish requests are rate limited to 60 requests per hour per client IP.
+- Publish request throttling is enforced at the Cloudflare edge, not in application code.
 - Page rendering failures for analytics or OG generation must not break the main page flow.
 - Published pages should not be indexed by search engines.

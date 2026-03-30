@@ -76,7 +76,6 @@ curl -X POST https://md.page/api/publish \
 |--------|-------------|
 | `400` | Missing or invalid `markdown` field |
 | `413` | Content too large (max 500KB) |
-| `429` | Rate limit exceeded (60 pages/hour per IP) |
 
 ### `GET /:id`
 
@@ -113,6 +112,9 @@ npm install
 npx wrangler kv namespace create PAGES
 
 # Update wrangler.toml with your KV namespace ID
+
+# Create or choose an Analytics Engine dataset
+# Then set the ANALYTICS binding in wrangler.toml
 
 # Deploy
 npx wrangler deploy

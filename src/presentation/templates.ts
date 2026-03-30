@@ -223,7 +223,7 @@ export function renderLandingPage(origin: string): string {
 export function renderPrivacyPage(origin: string): string {
   return renderPageTemplate(`
 <h1>Privacy Policy</h1>
-<p><strong>Last updated:</strong> March 29, 2026</p>
+<p><strong>Last updated:</strong> March 30, 2026</p>
 
 <h2>What md.page does</h2>
 <p>md.page converts Markdown into shareable HTML pages. No account, login, or API key is required.</p>
@@ -235,7 +235,7 @@ export function renderPrivacyPage(origin: string): string {
 <p>Each page is assigned a short, random 6-character ID (e.g. <code>a8Xk2m</code>), drawn from 62 alphanumeric characters. This gives roughly 56 billion possible combinations, making it extremely unlikely that someone will stumble upon your page by guessing. However, this is <strong>security through obscurity, not access control</strong> — do not publish sensitive, confidential, or personal information.</p>
 
 <h2>Rate limiting</h2>
-<p>To protect against brute-force enumeration of page IDs, md.page enforces rate limits on both publishing and page access. Automated scanning or scraping is not permitted.</p>
+<p>To protect against abuse and brute-force enumeration of page IDs, md.page may enforce rate limits at the Cloudflare edge. Automated scanning or scraping is not permitted.</p>
 
 <h2>Automatic expiry</h2>
 <p>All pages expire automatically after <strong>24 hours</strong>. Once expired, the content is permanently deleted from our servers and cannot be recovered.</p>
@@ -243,7 +243,6 @@ export function renderPrivacyPage(origin: string): string {
 <h2>Data we store</h2>
 <ul>
   <li><strong>Page content:</strong> The rendered HTML of your Markdown, stored in Cloudflare KV for up to 24 hours.</li>
-  <li><strong>Rate-limit counters:</strong> Your IP address is used to enforce rate limits. These counters expire within 1 hour and are not used for any other purpose.</li>
 </ul>
 <p>We do not store your original Markdown source. We do not use cookies, analytics, tracking pixels, or any third-party tracking services.</p>
 

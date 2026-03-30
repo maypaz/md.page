@@ -37,7 +37,6 @@
   - `400` when the body is invalid JSON.
   - `400` when `markdown` is missing or not a string.
   - `413` when Markdown exceeds 500 KB.
-  - `429` when the publish rate limit is exceeded.
 
 ### `OPTIONS /api/event`
 

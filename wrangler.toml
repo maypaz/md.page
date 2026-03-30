@@ -6,3 +6,7 @@ compatibility_date = "2024-12-01"
 binding = "PAGES"
 id = "00000000000000000000000000000000"
 preview_id = "00000000000000000000000000000000"
+
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "md_page"
