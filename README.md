@@ -76,7 +76,6 @@ curl -X POST https://md.page/api/publish \
 |--------|-------------|
 | `400` | Missing or invalid `markdown` field |
 | `413` | Content too large (max 500KB) |
-| `429` | Rate limit exceeded (60 pages/hour per IP) |
 
 ### `GET /:id`
 
@@ -114,6 +113,9 @@ npx wrangler kv namespace create PAGES
 
 # Update wrangler.toml with your KV namespace ID
 
+# Create or choose an Analytics Engine dataset
+# Then set the ANALYTICS binding in wrangler.toml
+
 # Deploy
 npx wrangler deploy
 ```
@@ -130,6 +132,18 @@ npm run dev
 - **Runtime:** [Cloudflare Workers](https://workers.cloudflare.com/)
 - **Storage:** [Cloudflare KV](https://developers.cloudflare.com/kv/)
 - **Markdown:** [markdown-it](https://github.com/markdown-it/markdown-it)
+
+## Architecture
+
+The codebase now follows a server-style layout with explicit routing, services, domain helpers, and presentation templates:
+
+- `src/index.ts` keeps the Worker entrypoint thin
+- `src/routes/` owns HTTP handlers
+- `src/services/` owns workflows and infrastructure integration
+- `src/domain/` owns pure business logic
+- `src/presentation/` owns HTML and static asset rendering
+
+Specs and decision docs live in `docs/spec/`, and agent navigation guidance lives in `AGENTS.md`.
 
 ## Contributing
 

@@ -9,3 +9,7 @@ routes = [
 [[kv_namespaces]]
 binding = "PAGES"
 id = "" # Run: npx wrangler kv namespace create PAGES
+
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "md_page"
