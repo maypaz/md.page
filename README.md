@@ -23,6 +23,36 @@
 
 ## Quick Start
 
+### CLI (recommended)
+
+```bash
+npx mdpage-cli README.md
+```
+
+```
+  Published → https://md.page/a8Xk2m
+  Expires in 24h
+```
+
+That's it. One command, zero setup.
+
+```bash
+# Publish and copy URL to clipboard
+npx mdpage-cli README.md --copy
+
+# Publish and open in browser
+npx mdpage-cli notes.md --open
+
+# Pipe from stdin
+cat CHANGELOG.md | npx mdpage-cli
+
+# Install globally for faster access
+npm i -g mdpage-cli
+mdpage-cli README.md
+```
+
+### API
+
 ```bash
 curl -X POST https://md.page/api/publish \
   -H "Content-Type: application/json" \
@@ -37,11 +67,9 @@ Response:
 }
 ```
 
-That's it. Open the URL — your markdown is now a clean, styled web page.
-
 ## Features
 
-- **Instant** — one POST request, get a shareable URL back
+- **One command** — `npx mdpage-cli README.md` and you're done
 - **Beautiful** — clean typography, code blocks, tables, responsive design
 - **Short URLs** — `md.page/a8Xk2m` (6-character IDs)
 - **Private** — links are unguessable, only people with the URL can view

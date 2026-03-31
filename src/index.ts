@@ -657,6 +657,10 @@ export default {
       <button onclick="copyAgentPrompt()" class="btn btn-agent">&#129302; Copy prompt for your AI agent</button>
     </div>
     <p id="copied-msg">Copied! Paste it into OpenClaw or any AI agent.</p>
+    <pre><code>npx mdpage-cli README.md
+
+→ Published → https://md.page/a8Xk2m</code></pre>
+    <p class="detail" style="margin-top: 0.5rem; margin-bottom: 1rem;">or use the API directly:</p>
     <pre><code>curl -X POST https://md.page/api/publish \\
   -d '{"markdown": "# Hello World"}'
 
@@ -664,6 +668,7 @@ export default {
     <p class="features">
       <span>&#9889; Instant</span> <span>&#128279; Short URLs</span> <span>&#128336; 24h expiry</span> <span>&#128274; Private links</span>
     </p>
+    <p class="detail" style="margin-top: 1rem;">Install globally: <code style="background: #f3f4f6; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.8rem;">npm i -g mdpage-cli</code></p>
   </div>
   <p style="margin-top: 1rem; text-align: center; font-size: 0.75rem;"><a href="/privacy" style="color: #6b7280; text-decoration: none;">Privacy Policy</a></p>
   <script>

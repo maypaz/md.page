@@ -9,5 +9,6 @@
       "@cloudflare/workers-types/experimental",
       "@cloudflare/vitest-pool-workers"
     ]
-  }
+  },
+  "exclude": ["cli"]
 }
