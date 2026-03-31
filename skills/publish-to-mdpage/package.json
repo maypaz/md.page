@@ -1,6 +1,6 @@
 {
   "name": "publish-to-mdpage",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Turn any markdown into a shareable web page via md.page. No accounts, no API keys.",
   "keywords": [
     "markdown",

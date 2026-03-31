@@ -739,6 +739,20 @@ export default {
     <p class="features">
       <span>&#9889; Instant</span> <span>&#128279; Short URLs</span> <span>&#128336; 24h expiry</span> <span>&#128274; Private links</span>
     </p>
+    <p class="detail" style="margin-top: 1rem; margin-bottom: 0.5rem;">Install as an AI skill:</p>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-dot code-dot-red"></span>
+        <span class="code-dot code-dot-yellow"></span>
+        <span class="code-dot code-dot-green"></span>
+        <span class="code-label">Skills</span>
+      </div>
+      <pre><code><span class="output"># Claude Code</span>
+<span class="output">$</span> <span class="cmd">npx</span> <span class="arg">skills</span> <span class="flag">add</span> <span class="str">maypaz/md.page</span>
+
+<span class="output"># OpenClaw</span>
+<span class="output">$</span> <span class="cmd">npx</span> <span class="arg">clawhub@latest</span> <span class="flag">install</span> <span class="str">publish-to-mdpage</span></code></pre>
+    </div>
   </div>
   <p style="margin-top: 1rem; text-align: center; font-size: 0.75rem;"><a href="/privacy" style="color: #6b7280; text-decoration: none;">Privacy Policy</a></p>
   <script>
