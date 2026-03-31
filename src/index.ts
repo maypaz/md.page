@@ -499,9 +499,45 @@ export default {
       const stored = await env.PAGES.get(id);
 
       if (!stored) {
-        return new Response("Page not found or expired.", {
+        const expiredHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Page expired — md.page</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; background: #fafafa; padding: 2rem 1rem; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { max-width: 480px; background: #fff; border-radius: 8px; padding: 2.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
+    h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+    p { color: #6b7280; margin-bottom: 1rem; font-size: 0.95rem; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.8rem; text-align: left; margin: 1.25rem 0; }
+    .cta { display: inline-block; background: #1a3a7a; color: #fff; padding: 0.6rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 0.9rem; }
+    .cta:hover { background: #142d61; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a1a; color: #e5e5e5; }
+      .card { background: #2a2a2a; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+      p { color: #9ca3af; }
+      .cta { background: #3b6fd4; }
+      .cta:hover { background: #2d5bb8; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>This page has expired</h1>
+    <p>Pages on md.page auto-delete after 24 hours.</p>
+    <p>Create your own in one command:</p>
+    <pre><code>npx mdpage-cli README.md</code></pre>
+    <a href="https://md.page" class="cta">Visit md.page</a>
+  </div>
+</body>
+</html>`;
+        return new Response(expiredHtml, {
           status: 404,
-          headers: { "Content-Type": "text/plain", "X-Robots-Tag": "noindex" },
+          headers: { "Content-Type": "text/html;charset=UTF-8", "X-Robots-Tag": "noindex" },
         });
       }
 
