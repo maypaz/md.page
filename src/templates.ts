@@ -204,6 +204,7 @@ export function landingPageHtml(origin: string): string {
     .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem; font-weight: 500; text-decoration: none; border: none; cursor: pointer; color: #fff; }
     .btn-github { background: #24292e; }
     .btn-github:hover { background: #1b1f23; }
+    .logo-text { color: #1a1a1a; }
     .subtitle { font-size: 1.1rem; color: #4b5563; margin-bottom: 0.75rem; }
     .detail { font-size: 0.8rem; color: #6b7280; margin-bottom: 0.25rem; }
     #copied-msg { margin-top: 0.4rem; color: #1a3a7a; font-size: 0.75rem; opacity: 0; transition: opacity 0.3s; }
@@ -241,6 +242,7 @@ export function landingPageHtml(origin: string): string {
       .btn-github:hover { background: #555; }
       .features { color: #9ca3af; }
       #copied-msg { color: #60a5fa; }
+      .logo-text { color: #fff; }
       .free-badge { color: #60a5fa !important; }
       .skill-card { border-color: #444; background: #333; }
       .skill-card:hover { border-color: #666; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
@@ -254,7 +256,18 @@ export function landingPageHtml(origin: string): string {
 </head>
 <body>
   <div class="container">
-    <img src="/logo.svg" alt="# md.page" height="50" style="display: inline-block;">
+    <div style="display: inline-flex; align-items: center; gap: 12px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+        <rect width="48" height="48" rx="11" fill="#4285F4"/>
+        <g stroke="#fff" stroke-width="4.5" stroke-linecap="round" fill="none" transform="translate(11, 8)">
+          <line x1="11" y1="2" x2="7" y2="32"/>
+          <line x1="21" y1="2" x2="17" y2="32"/>
+          <line x1="4" y1="11" x2="25" y2="11"/>
+          <line x1="3" y1="23" x2="24" y2="23"/>
+        </g>
+      </svg>
+      <span class="logo-text" style="font-family: ui-monospace, 'SF Mono', SFMono-Regular, 'Courier New', monospace; font-size: 42px; font-weight: 700; letter-spacing: -1px;">md.page</span>
+    </div>
     <p class="subtitle">Markdown in, beautiful page out. &#10024;</p>
     <p class="free-badge" style="font-size: 1.05rem; font-weight: 700; color: #1a3a7a; margin-bottom: 0.25rem;">100% free. No catch.</p>
     <p class="detail" style="margin-bottom: 0.75rem;">Open source. No accounts, no API keys, no limits.</p>
