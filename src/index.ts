@@ -29,7 +29,7 @@ export default {
     if (url.pathname === "/api/event" && request.method === "POST") {
       try {
         const body = await request.json<{ event: string }>();
-        const allowed = ["github_click", "copy_prompt_click", "copy_skill_claude", "copy_skill_openclaw"];
+        const allowed = ["github_click", "copy_prompt_click", "copy_skill_claude", "copy_skill_openclaw", "try_publish"];
         if (body.event && allowed.includes(body.event)) {
           emit(env, body.event);
         }
