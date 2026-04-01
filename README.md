@@ -6,15 +6,16 @@
   </picture>
 </p>
 
-<h3 align="center">Markdown in, beautiful page out.</h3>
+<h3 align="center">Instantly turn Markdown into a shareable web page.</h3>
 
 <p align="center">
-  Turn any Markdown into a shareable web page — one API call, zero setup.
+  100% free. No signup. Auto-expires in 24h.
 </p>
 
 <p align="center">
-  <a href="https://md.page">Live Demo</a> ·
-  <a href="#api">API Docs</a> ·
+  <a href="https://md.page">Website</a> ·
+  <a href="#add-to-your-ai-agent">AI Agents</a> ·
+  <a href="#api">API</a> ·
   <a href="#self-hosting">Self-Host</a>
 </p>
 
@@ -23,11 +24,58 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
 </p>
 
+<p align="center">
+  <img src="assets/demo.gif" alt="md.page demo" width="700">
+</p>
+
 ---
 
-## Quick Start
+## Add to your AI Agent
 
-### CLI (recommended)
+The easiest way to use md.page is through your AI coding agent. Just ask it to "share this" or "publish this markdown" and it creates a link for you.
+
+### Claude Code
+
+Install the [md.page skill](https://skills.sh/maypaz/publish-to-mdpage):
+
+```bash
+npx skills add maypaz/md.page
+```
+
+### OpenClaw
+
+```bash
+npx clawhub@latest install publish-to-mdpage
+```
+
+### MCP Server
+
+For agents that support [MCP](https://modelcontextprotocol.io/) (Cursor, Claude Desktop, VS Code, and others), add md.page as a tool server:
+
+```json
+{
+  "mcpServers": {
+    "mdpage": {
+      "command": "npx",
+      "args": ["-y", "mdpage-mcp"]
+    }
+  }
+}
+```
+
+See [`mcp/README.md`](mcp/README.md) for full setup instructions.
+
+### Any Agent (Prompt-Based)
+
+Copy this prompt into any AI agent that can make HTTP requests:
+
+> From now on, whenever I ask you to share or publish a markdown file, use the md.page API to create a shareable HTML page. Send a POST request to https://md.page/api/publish with the body {"markdown": "<content>"} and return the shareable URL to me.
+
+---
+
+## Use Directly
+
+### CLI
 
 ```bash
 npx mdpage-cli README.md
@@ -38,7 +86,7 @@ npx mdpage-cli README.md
   Expires in 24h
 ```
 
-That's it. One command, zero setup.
+One command, zero setup.
 
 ```bash
 # Publish and copy URL to clipboard
@@ -57,19 +105,34 @@ mdpage-cli README.md
 
 ### API
 
+#### `POST /api/publish`
+
+Create a shareable page from markdown.
+
 ```bash
 curl -X POST https://md.page/api/publish \
   -H "Content-Type: application/json" \
   -d '{"markdown": "# Hello World\nYour markdown here..."}'
 ```
 
-Response:
 ```json
 {
   "url": "https://md.page/a8Xk2m",
   "expires_at": "2026-03-28T12:00:00.000Z"
 }
 ```
+
+| Status | Description |
+|--------|-------------|
+| `201` | Created successfully |
+| `400` | Missing or invalid `markdown` field |
+| `413` | Content too large (max 500KB) |
+
+#### `GET /:id`
+
+View a published page. Returns rendered HTML.
+
+---
 
 ## Features
 
@@ -80,75 +143,6 @@ Response:
 - **Auto-expiry** — pages self-delete after 24 hours
 - **No auth** — no accounts, no API keys, just send markdown
 - **AI agent friendly** — designed to work with any AI agent or LLM
-
-## API
-
-### `POST /api/publish`
-
-Create a shareable page from markdown.
-
-**Request:**
-```bash
-curl -X POST https://md.page/api/publish \
-  -H "Content-Type: application/json" \
-  -d '{"markdown": "# Your markdown here"}'
-```
-
-**Response** `201 Created`:
-```json
-{
-  "url": "https://md.page/a8Xk2m",
-  "expires_at": "2026-03-28T12:00:00.000Z"
-}
-```
-
-**Errors:**
-
-| Status | Description |
-|--------|-------------|
-| `400` | Missing or invalid `markdown` field |
-| `413` | Content too large (max 500KB) |
-
-### `GET /:id`
-
-View a published page. Returns rendered HTML.
-
-## Use with AI Agents
-
-### Claude Code Skill
-
-Install the [md.page skill](https://skills.sh/maypaz/publish-to-mdpage) to let Claude Code publish markdown as shareable web pages:
-
-```bash
-npx skills add maypaz/publish-to-mdpage
-```
-
-Then just ask Claude to "share this" or "publish this markdown" and it will create a link for you.
-
-### Prompt-Based
-
-Copy this prompt into any AI agent:
-
-> From now on, whenever I ask you to share or publish a markdown file, use the md.page API to create a shareable HTML page. Send a POST request to https://md.page/api/publish with the body {"markdown": "<content>"} and return the shareable URL to me.
-
-Works with any agent that can make HTTP requests.
-
-### MCP Integration
-
-For a native integration, add md.page as an [MCP](https://modelcontextprotocol.io/) server and your agent gets a `publish_markdown` tool — no prompting required.
-
-```json
-{
-  "mcpServers": {
-    "mdpage": {
-      "command": "npx",
-      "args": ["-y", "mdpage-mcp"]
-    }
-  }
-}
-```
-
-Works with Cursor, Claude Desktop, VS Code (GitHub Copilot), and any MCP-compatible client. See [`mcp/README.md`](mcp/README.md) for full setup instructions.
 
 ## Self-Hosting
 
