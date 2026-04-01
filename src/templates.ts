@@ -252,13 +252,13 @@ export function landingPageHtml(origin: string): string {
     .try-publish-btn {
       display: inline-flex; align-items: center; gap: 0.5rem;
       margin-top: 0.6rem; padding: 0.7rem 1.6rem;
-      background: #4285F4; color: #fff;
-      border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #4285F4, #1a5fd6);
+      color: #fff; border: none; border-radius: 10px;
       font-size: 0.95rem; font-weight: 600;
-      cursor: pointer; transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
-      box-shadow: 0 2px 8px rgba(66,133,244,0.2);
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+      box-shadow: 0 2px 8px rgba(66,133,244,0.25);
     }
-    .try-publish-btn:hover { background: #3367d6; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(66,133,244,0.3); }
+    .try-publish-btn:hover { background: linear-gradient(135deg, #5a9af5, #2b6de0); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(66,133,244,0.35); }
     .try-publish-btn:active { transform: scale(0.97); }
     .try-publish-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
     .try-status { font-size: 0.78rem; margin-top: 0.4rem; min-height: 1.2em; }
