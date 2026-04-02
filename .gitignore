@@ -2,6 +2,8 @@ node_modules/
 .wrangler/
 .DS_Store
 wrangler.toml
+.factory/
+.superset/
 PLAN.md
 plans/
 scripts/
