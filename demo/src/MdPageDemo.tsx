@@ -10,65 +10,93 @@ import { BrowserScene } from "./BrowserScene";
 import { EndCard } from "./EndCard";
 import { AnimatedCursor } from "./Cursor";
 
-// Timeline (frames at 30fps)
-const PROMPT_START = 125; // second prompt appears
-const SCROLL_START = 120; // start scrolling up before prompt
-const PROMPT_END = 185; // URL appears
-
-const CURSOR_APPEAR = 190; // cursor fades in
-const CURSOR_CLICK = 205; // cursor clicks the link
-const CURSOR_DISAPPEAR = 215; // cursor fades out
-
-const TRANSITION_START = 215; // terminal → browser
-const BROWSER_START = 228;
-
-const ENDCARD_START = 360;
-
 const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
-const PROMPT_TEXT = "create md.page I can share";
+// Timeline (frames at 30fps)
+// Phase 1+2: Welcome screen → user types first query
+const FIRST_PROMPT_START = 50; // prompt begins (overlaps welcome fade)
+const FIRST_PROMPT_END = 88; // typing finishes
+
+// Phase 3: Agent response (1s pause after typing finishes)
+const RESPONSE_START = FIRST_PROMPT_END + 30; // ~1s gap
+// 27 lines × 2 frame delay = 54 frames → response done ~frame 146
+
+// Phase 4: Second prompt (~1s after response ends)
+const SCROLL_START = 200;
+const PROMPT_START = 205;
+const PROMPT_END = 260; // URL appears
+
+// Phase 5: Cursor + browser
+const CURSOR_APPEAR = 265;
+const CURSOR_CLICK = 278;
+const CURSOR_DISAPPEAR = 288;
+const TRANSITION_START = 288;
+const BROWSER_START = 300;
+
+// Phase 6: End card
+const ENDCARD_START = 400;
+
+const FIRST_PROMPT_TEXT =
+  "what is the root cause of the rate limiting bug?";
+const SECOND_PROMPT_TEXT = "create md.page I can share";
 
 export const MdPageDemo: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // --- Scroll offset: scroll terminal content up when second prompt appears ---
-  const scrollSpring = spring({
+  // ── First scroll: push welcome box up when response starts ──
+  const firstScrollSpring = spring({
+    frame: frame - RESPONSE_START,
+    fps,
+    config: { damping: 30, stiffness: 40, mass: 1 },
+  });
+  const firstScrollOffset = interpolate(firstScrollSpring, [0, 1], [0, 220]);
+
+  // ── First prompt typing ──
+  const showFirstPrompt = frame >= FIRST_PROMPT_START;
+  const firstPromptChars = Math.min(
+    FIRST_PROMPT_TEXT.length,
+    Math.floor(
+      interpolate(
+        frame,
+        [FIRST_PROMPT_START + 5, FIRST_PROMPT_END],
+        [0, FIRST_PROMPT_TEXT.length],
+        CLAMP,
+      ),
+    ),
+  );
+
+  // ── Response ──
+  const showResponse = frame >= RESPONSE_START;
+
+  // ── Second scroll: push response up for second prompt ──
+  const secondScrollSpring = spring({
     frame: frame - SCROLL_START,
     fps,
     config: { damping: 30, stiffness: 40, mass: 1 },
   });
-  const scrollOffset = interpolate(scrollSpring, [0, 1], [0, 340]);
+  const secondScrollOffset = interpolate(secondScrollSpring, [0, 1], [0, 380]);
 
-  // --- Terminal opacity ---
-  const terminalOpacity = interpolate(
-    frame,
-    [TRANSITION_START, TRANSITION_START + 12],
-    [1, 0],
-    CLAMP,
-  );
+  // Combined scroll
+  const scrollOffset = firstScrollOffset + secondScrollOffset;
 
-  const terminalScale = interpolate(
-    frame,
-    [TRANSITION_START, TRANSITION_START + 12],
-    [1, 0.97],
-    CLAMP,
-  );
-
-  // --- User prompt typing ---
-  const promptChars = Math.min(
-    PROMPT_TEXT.length,
+  // ── Second prompt typing ──
+  const showSecondPrompt = frame >= PROMPT_START;
+  const secondPromptChars = Math.min(
+    SECOND_PROMPT_TEXT.length,
     Math.floor(
-      interpolate(frame, [PROMPT_START, PROMPT_START + 30], [0, PROMPT_TEXT.length], {
-        ...CLAMP,
-      }),
+      interpolate(
+        frame,
+        [PROMPT_START, PROMPT_START + 30],
+        [0, SECOND_PROMPT_TEXT.length],
+        CLAMP,
+      ),
     ),
   );
 
-  // --- Publishing & URL timing ---
+  // ── Publishing & URL ──
   const showPublishing = frame >= PROMPT_START + 35 && frame < PROMPT_END;
   const showUrl = frame >= PROMPT_END;
-
   const urlGlow = interpolate(
     frame,
     [PROMPT_END, PROMPT_END + 15, PROMPT_END + 30],
@@ -76,16 +104,33 @@ export const MdPageDemo: React.FC = () => {
     CLAMP,
   );
 
-  // --- Browser ---
+  // ── Token count (animates during response) ──
+  const tokenCount = Math.floor(
+    interpolate(frame, [RESPONSE_START, RESPONSE_START + 60], [0, 1247], CLAMP),
+  );
+
+  // ── Terminal → browser transition ──
+  const terminalOpacity = interpolate(
+    frame,
+    [TRANSITION_START, TRANSITION_START + 12],
+    [1, 0],
+    CLAMP,
+  );
+  const terminalScale = interpolate(
+    frame,
+    [TRANSITION_START, TRANSITION_START + 12],
+    [1, 0.97],
+    CLAMP,
+  );
+
+  // ── Browser ──
   const browserProgress = spring({
     frame: frame - BROWSER_START,
     fps,
     config: { damping: 24, stiffness: 100, mass: 0.8 },
   });
-
   const browserScale = interpolate(browserProgress, [0, 1], [0.92, 1]);
   const browserOpacity = interpolate(browserProgress, [0, 1], [0, 1]);
-
   const browserFadeOut = interpolate(
     frame,
     [ENDCARD_START - 10, ENDCARD_START + 5],
@@ -93,7 +138,7 @@ export const MdPageDemo: React.FC = () => {
     CLAMP,
   );
 
-  // --- End card ---
+  // ── End card ──
   const endCardOpacity = interpolate(
     frame,
     [ENDCARD_START, ENDCARD_START + 15],
@@ -102,9 +147,8 @@ export const MdPageDemo: React.FC = () => {
   );
 
   return (
-    <AbsoluteFill style={{ background: "#1e1e2e" }}>
-
-      {/* Scene 1-3: Terminal with Claude Code UI */}
+    <AbsoluteFill style={{ background: "#1a1a1e" }}>
+      {/* Terminal scene */}
       {frame < BROWSER_START + 15 && (
         <AbsoluteFill
           style={{
@@ -115,29 +159,34 @@ export const MdPageDemo: React.FC = () => {
           }}
         >
           <TerminalScene
-            showSecondPrompt={frame >= PROMPT_START}
-            secondPromptChars={promptChars}
-            secondPromptText={PROMPT_TEXT}
+            showFirstPrompt={showFirstPrompt}
+            firstPromptChars={firstPromptChars}
+            firstPromptText={FIRST_PROMPT_TEXT}
+            showResponse={showResponse}
+            responseFrame={RESPONSE_START}
+            showSecondPrompt={showSecondPrompt}
+            secondPromptChars={secondPromptChars}
+            secondPromptText={SECOND_PROMPT_TEXT}
             showPublishing={showPublishing}
             showUrl={showUrl}
             urlGlow={urlGlow}
             scrollOffset={scrollOffset}
+            tokenCount={tokenCount}
           />
 
-          {/* Mouse cursor clicking the URL */}
           <AnimatedCursor
             appearFrame={CURSOR_APPEAR}
             clickFrame={CURSOR_CLICK}
             disappearFrame={CURSOR_DISAPPEAR}
             startX={50}
-            startY={40}
+            startY={30}
             targetX={15}
-            targetY={48}
+            targetY={33}
           />
         </AbsoluteFill>
       )}
 
-      {/* Scene 4: Browser */}
+      {/* Browser scene */}
       {frame >= BROWSER_START && frame < ENDCARD_START + 15 && (
         <AbsoluteFill
           style={{
@@ -151,7 +200,7 @@ export const MdPageDemo: React.FC = () => {
         </AbsoluteFill>
       )}
 
-      {/* Scene 5: End card */}
+      {/* End card */}
       {frame >= ENDCARD_START && (
         <AbsoluteFill style={{ opacity: endCardOpacity }}>
           <EndCard />

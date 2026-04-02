@@ -1,6 +1,4 @@
 import {
-  Img,
-  staticFile,
   useCurrentFrame,
   interpolate,
   spring,
@@ -48,14 +46,36 @@ export const EndCard: React.FC = () => {
         gap: 16,
       }}
     >
-      {/* Logo */}
-      <Img
-        src={staticFile("logo.png")}
+      {/* Logo: chevron icon + md.page text */}
+      <div
         style={{
-          height: 90,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
           transform: `scale(${logoScale})`,
         }}
-      />
+      >
+        <svg width="56" height="56" viewBox="0 0 48 48">
+          <rect width="48" height="48" rx="11" fill="#4285F4"/>
+          <g stroke="#fff" strokeWidth="4.5" strokeLinecap="round" fill="none" transform="translate(11, 8)">
+            <line x1="11" y1="2" x2="7" y2="32"/>
+            <line x1="21" y1="2" x2="17" y2="32"/>
+            <line x1="4" y1="11" x2="25" y2="11"/>
+            <line x1="3" y1="23" x2="24" y2="23"/>
+          </g>
+        </svg>
+        <span
+          style={{
+            fontSize: 48,
+            fontWeight: 700,
+            color: "#1a1a1a",
+            fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+            letterSpacing: -1,
+          }}
+        >
+          md.page
+        </span>
+      </div>
 
       {/* Tagline */}
       <div
