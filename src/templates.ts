@@ -191,6 +191,8 @@ export function landingPageHtml(origin: string): string {
   <meta property="og:description" content="Instantly convert Markdown to a shareable HTML page.">
   <meta property="og:image" content="${origin}/og-image.png">
   <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:url" content="${origin}">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
