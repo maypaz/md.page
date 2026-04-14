@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --remote",
+    "deploy": "wrangler r2 object put md-page-assets/lp.mp4 --file assets/lp.mp4 --content-type video/mp4 && wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -29,6 +29,7 @@
   "dependencies": {
     "@cf-wasm/resvg": "^0.3.3",
     "@types/markdown-it": "^14.1.2",
+    "hono": "^4.12.12",
     "markdown-it": "^14.1.1"
   }
 }

@@ -2,6 +2,12 @@ export interface Env {
   PAGES: KVNamespace;
   ANALYTICS: AnalyticsEngineDataset;
   ASSETS_BUCKET: R2Bucket;
+  DB: D1Database;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  AUTH_ENABLED: string; // "true" or "false"
 }
 
 export interface PageData {
