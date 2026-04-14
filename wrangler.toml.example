@@ -3,9 +3,36 @@ main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
 routes = [
-  { pattern = "your-domain.com/*", zone_name = "your-domain.com" }
+  { pattern = "your-domain.com/*", zone_name = "your-domain.com" },
+  { pattern = "*.your-domain.com/*", zone_name = "your-domain.com" }
 ]
+
+[observability]
+enabled = true
+
+[vars]
+# AUTH_ENABLED = "true"  # Set via: npx wrangler secret put AUTH_ENABLED
+
+# Secrets (set via `npx wrangler secret put <NAME>`):
+#   GITHUB_CLIENT_ID
+#   GITHUB_CLIENT_SECRET
+#   GOOGLE_CLIENT_ID
+#   GOOGLE_CLIENT_SECRET
 
 [[kv_namespaces]]
 binding = "PAGES"
 id = "" # Run: npx wrangler kv namespace create PAGES
+
+[[d1_databases]]
+binding = "DB"
+database_name = "md-page-db"
+database_id = "" # Run: npx wrangler d1 create md-page-db
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "" # Run: npx wrangler r2 bucket create md-page-assets
+
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "md_page_events"

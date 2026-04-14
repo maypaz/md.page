@@ -14,7 +14,8 @@ export function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
 }
 
 export function stripMarkdownInline(text: string): string {
@@ -43,6 +44,12 @@ export function extractMeta(markdown: string): { title: string; description: str
   );
   const description = plainText.slice(0, 155) || "A page created with md.page";
   return { title, description };
+}
+
+export async function hashKey(key: string): Promise<string> {
+  const data = new TextEncoder().encode(key);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function emit(env: Env, event: string, detail = "") {

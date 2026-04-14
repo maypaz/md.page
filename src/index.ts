@@ -1,13 +1,21 @@
+import { Hono } from "hono";
+import { cors } from "hono/cors";
 import MarkdownIt from "markdown-it";
 import type { Env, PageData } from "./types";
 import { generateId, extractMeta, emit, escapeHtml } from "./utils";
 import { FAVICON_SVG, CLAUDE_LOGO_SVG, LOGO_SVG, OG_IMAGE_PNG_B64 } from "./assets";
 import { renderOgPng, renderLandingOgPng } from "./og";
-import { pageTemplate, expiredPageHtml, landingPageHtml, privacyPageHtml } from "./templates";
+import { pageTemplate, expiredPageHtml, landingPageHtml, privacyPageHtml, loginPageHtml } from "./templates";
+import { auth, getUserFromCookie } from "./auth";
+import { api } from "./api";
+import { extractSubdomain, subdomainApp } from "./subdomain";
 
-export { generateId, escapeHtml, stripMarkdownInline, extractMeta } from "./utils";
+export { generateId, escapeHtml, stripMarkdownInline, extractMeta, hashKey } from "./utils";
 export { wrapText, parseMarkdownBlocks, generateOgSvg } from "./og";
 
+type HonoEnv = { Bindings: Env };
+
+const app = new Hono<HonoEnv>();
 const md = new MarkdownIt({ html: false });
 
 const defaultFence = md.renderer.rules.fence!;
@@ -21,190 +29,225 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
 
 const TTL = 86400; // 24 hours
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+// Subdomain routing — intercept requests to username.md.page
+// Let /api/* and /auth/* fall through to the main app so they work from subdomains
+app.use("*", async (c, next) => {
+  const host = c.req.header("host") || "";
+  const username = extractSubdomain(host);
+  const path = new URL(c.req.url).pathname;
+  if (username && !path.startsWith("/api/") && !path.startsWith("/auth/") && !path.startsWith("/favicon") && !path.startsWith("/logo") && !path.startsWith("/og/")) {
+    const req = new Request(c.req.raw);
+    req.headers.set("x-subdomain-user", username);
+    return subdomainApp.fetch(req, c.env);
+  }
+  await next();
+});
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+// CORS for API routes
+app.use("/api/*", cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+}));
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: CORS_HEADERS });
+// POST /api/event — client-side event tracking
+app.post("/api/event", async (c) => {
+  try {
+    const body = await c.req.json<{ event: string }>();
+    const allowed = ["github_click", "copy_prompt_click", "copy_skill_claude", "copy_skill_openclaw", "try_publish"];
+    if (body.event && allowed.includes(body.event)) {
+      emit(c.env, body.event);
+    }
+  } catch {
+    // ignore
+  }
+  return c.text("ok");
+});
+
+// POST /api/publish — create a page
+// Rate limiting handled by Cloudflare WAF rule (10 req / 10s per IP)
+app.post("/api/publish", async (c) => {
+  try {
+    const body = await c.req.json<{ markdown: string }>();
+
+    if (!body.markdown || typeof body.markdown !== "string") {
+      return c.json({ error: "Missing 'markdown' field" }, 400);
     }
 
-    // POST /api/event — client-side event emiting
-    if (url.pathname === "/api/event" && request.method === "POST") {
-      try {
-        const body = await request.json<{ event: string }>();
-        const allowed = ["github_click", "copy_prompt_click", "copy_skill_claude", "copy_skill_openclaw", "try_publish"];
-        if (body.event && allowed.includes(body.event)) {
-          emit(env, body.event);
-        }
-      } catch {
-        // ignore
-      }
-      return new Response("ok", { headers: CORS_HEADERS });
+    if (body.markdown.length > 500_000) {
+      return c.json({ error: "Content too large (max 500KB)" }, 413);
     }
 
-    // POST /api/publish — create a page
-    // Rate limiting handled by Cloudflare WAF rule (10 req / 10s per IP)
-    if (url.pathname === "/api/publish" && request.method === "POST") {
-      try {
-        const body = await request.json<{ markdown: string }>();
+    const id = generateId();
+    const url = new URL(c.req.url);
+    const expiresAt = new Date(Date.now() + TTL * 1000).toISOString();
+    const meta = extractMeta(body.markdown);
+    const renderedHtml = md.render(body.markdown);
 
-        if (!body.markdown || typeof body.markdown !== "string") {
-          return Response.json(
-            { error: "Missing 'markdown' field" },
-            { status: 400, headers: CORS_HEADERS }
-          );
-        }
+    const markdownPreview = body.markdown.slice(0, 1500);
+    await c.env.PAGES.put(id, JSON.stringify({ html: renderedHtml, title: meta.title, description: meta.description, markdownPreview }), { expirationTtl: TTL });
 
-        if (body.markdown.length > 500_000) {
-          return Response.json(
-            { error: "Content too large (max 500KB)" },
-            { status: 413, headers: CORS_HEADERS }
-          );
-        }
+    const pageUrl = `${url.origin}/${id}`;
 
-        const id = generateId();
-        const expiresAt = new Date(Date.now() + TTL * 1000).toISOString();
-        const meta = extractMeta(body.markdown);
-        const renderedHtml = md.render(body.markdown);
+    emit(c.env, "page_publish");
 
-        const markdownPreview = body.markdown.slice(0, 1500);
-        await env.PAGES.put(id, JSON.stringify({ html: renderedHtml, title: meta.title, description: meta.description, markdownPreview }), { expirationTtl: TTL });
+    return c.json({ url: pageUrl, expires_at: expiresAt }, 201);
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+});
 
-        const pageUrl = `${url.origin}/${id}`;
+// Gate all v2 auth routes behind feature flag
+app.use("/auth/*", async (c, next) => {
+  if (c.env.AUTH_ENABLED !== "true") return c.text("Coming soon", 404);
+  await next();
+});
+app.route("/auth", auth);
 
-        emit(env, "page_publish");
+// Gate authenticated API routes behind feature flag
+app.use("/api/me", async (c, next) => {
+  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "Coming soon" }, 404);
+  await next();
+});
+app.use("/api/keys/*", async (c, next) => {
+  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "Coming soon" }, 404);
+  await next();
+});
+app.use("/api/pages/*", async (c, next) => {
+  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "Coming soon" }, 404);
+  await next();
+});
+app.route("/api", api);
 
-        return Response.json(
-          { url: pageUrl, expires_at: expiresAt },
-          { status: 201, headers: CORS_HEADERS }
-        );
-      } catch {
-        return Response.json(
-          { error: "Invalid JSON body" },
-          { status: 400, headers: CORS_HEADERS }
-        );
-      }
-    }
+// Favicon
+app.get("/favicon.svg", (c) => {
+  return c.body(FAVICON_SVG, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } });
+});
 
-    // GET /:id — serve the page
-    const pageMatch = url.pathname.match(/^\/([a-zA-Z0-9]{6})$/);
-    if (pageMatch && request.method === "GET") {
-      const id = pageMatch[1];
-      const stored = await env.PAGES.get(id);
+// Claude logo
+app.get("/claude-logo.svg", (c) => {
+  return c.body(CLAUDE_LOGO_SVG, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } });
+});
 
-      if (!stored) {
-        return new Response(expiredPageHtml(), {
-          status: 404,
-          headers: { "Content-Type": "text/html;charset=UTF-8", "X-Robots-Tag": "noindex" },
-        });
-      }
+// Logo
+app.get("/logo.svg", (c) => {
+  return c.body(LOGO_SVG, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } });
+});
 
-      const page = JSON.parse(stored) as PageData;
-      const pageUrl = `${url.origin}/${id}`;
-      const ogImageUrl = `${url.origin}/og/${id}.png`;
-      const html = pageTemplate(page.html, { title: page.title, description: page.description, pageUrl, origin: url.origin, ogImageUrl, ogType: "article" });
+// Landing page video (served from R2)
+app.get("/lp.mp4", async (c) => {
+  const object = await c.env.ASSETS_BUCKET.get("lp.mp4");
+  if (!object) return c.text("Not found", 404);
+  return c.body(object.body as ReadableStream, { headers: { "Content-Type": "video/mp4", "Cache-Control": "public, max-age=86400" } });
+});
 
-      emit(env, "page_view", id);
+// OG image (PNG for WhatsApp/social)
+app.get("/og-image.png", async (c) => {
+  try {
+    const pngData = await renderLandingOgPng();
+    return new Response(pngData, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+  } catch {
+    const bytes = Uint8Array.from(atob(OG_IMAGE_PNG_B64), ch => ch.charCodeAt(0));
+    return new Response(bytes, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" } });
+  }
+});
 
-      return new Response(html, {
-        headers: {
-          "Content-Type": "text/html;charset=UTF-8",
-          "X-Robots-Tag": "noindex",
-          "Cache-Control": "no-store",
-        },
-      });
-    }
+// Dynamic OG image per page
+app.get("/og/:filename", async (c) => {
+  const filename = c.req.param("filename");
+  const match = filename.match(/^([a-zA-Z0-9]{6})\.png$/);
+  if (!match) return c.text("Not found", 404);
+  const id = match[1];
 
-    // Dynamic OG image per page
-    const ogMatch = url.pathname.match(/^\/og\/([a-zA-Z0-9]{6})\.png$/);
-    if (ogMatch && request.method === "GET") {
-      const id = ogMatch[1];
-      const stored = await env.PAGES.get(id);
-      if (!stored) {
-        const bytes = Uint8Array.from(atob(OG_IMAGE_PNG_B64), c => c.charCodeAt(0));
-        return new Response(bytes, {
-          status: 404,
-          headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" },
-        });
-      }
-      const page = JSON.parse(stored) as PageData;
-      try {
-        const pngData = await renderOgPng(page.title || "md.page", page.markdownPreview || page.description || "");
-        return new Response(pngData, {
-          headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
-        });
-      } catch (err) {
-        console.error("OG image render failed:", err);
-        const bytes = Uint8Array.from(atob(OG_IMAGE_PNG_B64), c => c.charCodeAt(0));
-        return new Response(bytes, {
-          headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" },
-        });
-      }
-    }
+  const stored = await c.env.PAGES.get(id);
+  if (!stored) {
+    const bytes = Uint8Array.from(atob(OG_IMAGE_PNG_B64), ch => ch.charCodeAt(0));
+    return new Response(bytes, { status: 404, headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" } });
+  }
+  const page = JSON.parse(stored) as PageData;
+  try {
+    const pngData = await renderOgPng(page.title || "md.page", page.markdownPreview || page.description || "");
+    return new Response(pngData, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+  } catch (err) {
+    console.error("OG image render failed");
+    const bytes = Uint8Array.from(atob(OG_IMAGE_PNG_B64), ch => ch.charCodeAt(0));
+    return new Response(bytes, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" } });
+  }
+});
 
-    // Favicon
-    if (url.pathname === "/favicon.svg") {
-      return new Response(FAVICON_SVG, {
-        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" },
-      });
-    }
+// Landing page
+app.get("/", (c) => {
+  const url = new URL(c.req.url);
+  emit(c.env, "homepage_visit");
+  return c.html(landingPageHtml(url.origin));
+});
 
-    // Claude logo
-    if (url.pathname === "/claude-logo.svg") {
-      return new Response(CLAUDE_LOGO_SVG, {
-        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" },
-      });
-    }
+// Privacy policy
+app.get("/privacy", (c) => {
+  const url = new URL(c.req.url);
+  return c.html(privacyPageHtml(url.origin));
+});
 
-    // Logo
-    if (url.pathname === "/logo.svg") {
-      return new Response(LOGO_SVG, {
-        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" },
-      });
-    }
+// Login page
+app.get("/login", async (c) => {
+  if (c.env.AUTH_ENABLED !== "true") return c.text("Coming soon", 404);
+  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
+  if (user) return c.redirect(`https://${user.username}.md.page`);
+  return c.html(loginPageHtml(new URL(c.req.url).origin));
+});
 
-    // Landing page video (served from R2)
-    if (url.pathname === "/lp.mp4") {
-      const object = await env.ASSETS_BUCKET.get("lp.mp4");
-      if (!object) return new Response("Not found", { status: 404 });
-      return new Response(object.body, {
-        headers: { "Content-Type": "video/mp4", "Cache-Control": "public, max-age=86400" },
-      });
-    }
+// Redirect /docs/* to subdomain
+app.get("/docs/view/:slug", async (c) => {
+  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
+  if (!user) return c.redirect("/login");
+  return c.redirect(`https://${user.username}.md.page/${c.req.param("slug")}`, 302);
+});
 
-    // OG image (PNG for WhatsApp/social)
-    if (url.pathname === "/og-image.png") {
-      try {
-        const pngData = await renderLandingOgPng();
-        return new Response(pngData, {
-          headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
-        });
-      } catch {
-        const bytes = Uint8Array.from(atob(OG_IMAGE_PNG_B64), c => c.charCodeAt(0));
-        return new Response(bytes, {
-          headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" },
-        });
-      }
-    }
+app.get("/docs/edit/:slug", async (c) => {
+  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
+  if (!user) return c.redirect("/login");
+  return c.redirect(`https://${user.username}.md.page/${c.req.param("slug")}/edit`, 302);
+});
 
-    // Landing page
-    if (url.pathname === "/") {
-      emit(env, "homepage_visit");
-      return new Response(landingPageHtml(url.origin), { headers: { "Content-Type": "text/html;charset=UTF-8" } });
-    }
+app.get("/docs/settings", async (c) => {
+  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
+  if (!user) return c.redirect("/login");
+  return c.redirect(`https://${user.username}.md.page/settings`, 302);
+});
 
-    // Privacy policy
-    if (url.pathname === "/privacy") {
-      return new Response(privacyPageHtml(url.origin), { headers: { "Content-Type": "text/html;charset=UTF-8" } });
-    }
+app.get("/docs/new", async (c) => {
+  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
+  if (!user) return c.redirect("/login");
+  return c.redirect(`https://${user.username}.md.page/new`, 302);
+});
 
-    return new Response("Not found", { status: 404 });
-  },
-};
+app.get("/docs", async (c) => {
+  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
+  if (!user) return c.redirect("/login");
+  return c.redirect(`https://${user.username}.md.page`, 302);
+});
+
+// GET /:id — serve a published page
+app.get("/:id{[a-zA-Z0-9]{6}}", async (c) => {
+  const id = c.req.param("id");
+  const url = new URL(c.req.url);
+  const stored = await c.env.PAGES.get(id);
+
+  if (!stored) {
+    return c.html(expiredPageHtml(), 404, { "X-Robots-Tag": "noindex" });
+  }
+
+  const page = JSON.parse(stored) as PageData;
+  const pageUrl = `${url.origin}/${id}`;
+  const ogImageUrl = `${url.origin}/og/${id}.png`;
+  const html = pageTemplate(page.html, { title: page.title, description: page.description, pageUrl, origin: url.origin, ogImageUrl, ogType: "article" });
+
+  emit(c.env, "page_view", id);
+
+  return c.html(html, 200, {
+    "X-Robots-Tag": "noindex",
+    "Cache-Control": "no-store",
+  });
+});
+
+export default app;

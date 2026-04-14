@@ -312,9 +312,10 @@ describe("Worker", () => {
       const res = await exports.default.fetch(
         new Request("https://md.page/api/publish", { method: "OPTIONS" })
       );
-      expect(res.status).toBe(200);
+      expect([200, 204]).toContain(res.status);
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
       expect(res.headers.get("Access-Control-Allow-Methods")).toContain("POST");
+      expect(res.headers.get("Access-Control-Allow-Methods")).toContain("GET");
       expect(res.headers.get("Access-Control-Allow-Headers")).toContain(
         "Content-Type"
       );

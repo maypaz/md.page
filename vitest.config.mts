@@ -8,6 +8,7 @@ export default defineConfig({
       miniflare: {
         compatibilityDate: "2024-12-01",
         kvNamespaces: ["PAGES"],
+        d1Databases: ["DB"],
       },
     }),
   ],
