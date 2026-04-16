@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import MarkdownIt from "markdown-it";
 import type { Env, PageData } from "./types";
-import { generateId, extractMeta, emit, escapeHtml } from "./utils";
+import { generateId, extractMeta, emit } from "./utils";
+import { md } from "./markdown";
 import { FAVICON_SVG, CLAUDE_LOGO_SVG, LOGO_SVG, OG_IMAGE_PNG_B64 } from "./assets";
 import { renderOgPng, renderLandingOgPng } from "./og";
 import { pageTemplate, expiredPageHtml, landingPageHtml, privacyPageHtml, loginPageHtml } from "./templates";
@@ -16,16 +16,6 @@ export { wrapText, parseMarkdownBlocks, generateOgSvg } from "./og";
 type HonoEnv = { Bindings: Env };
 
 const app = new Hono<HonoEnv>();
-const md = new MarkdownIt({ html: false });
-
-const defaultFence = md.renderer.rules.fence!;
-md.renderer.rules.fence = (tokens, idx, options, env, self) => {
-  const token = tokens[idx];
-  if (token.info.trim().toLowerCase() === "mermaid") {
-    return `<pre class="mermaid">${escapeHtml(token.content)}</pre>\n`;
-  }
-  return defaultFence(tokens, idx, options, env, self);
-};
 
 const TTL = 86400; // 24 hours
 

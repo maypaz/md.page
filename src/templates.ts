@@ -1980,7 +1980,14 @@ export function docViewPageHtml(data: DocViewPageData): string {
         showToast('Failed to update visibility', 'error');
       }
     }
-  </script>
+  </script>${page.renderedHtml.includes('class="mermaid"') ? `
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+    });
+  </script>` : ''}
 </body>
 </html>`;
 }

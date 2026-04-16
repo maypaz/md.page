@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import MarkdownIt from "markdown-it";
 import type { Env } from "./types";
+import { md } from "./markdown";
 import { authRequired } from "./middleware";
 import type { User } from "./middleware";
 import { generateId, extractMeta, hashKey, emit } from "./utils";
@@ -13,7 +13,6 @@ type HonoEnv = {
 
 export const api = new Hono<HonoEnv>();
 
-const md = new MarkdownIt({ html: false });
 const MAX_PAGES = 10;
 
 // All routes in this file require authentication

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import MarkdownIt from "markdown-it";
+import { md as welcomeMd } from "./markdown";
 import type { Env } from "./types";
 import { WELCOME_DOC_MARKDOWN, WELCOME_DOC_TITLE, WELCOME_DOC_SLUG } from "./templates";
 import { generateId, extractMeta, hashKey, emit } from "./utils";
@@ -102,8 +102,6 @@ export async function getUserFromApiKey(db: D1Database, authHeader: string | nul
 
   return row || null;
 }
-
-const welcomeMd = new MarkdownIt({ html: false });
 
 async function createWelcomeDoc(db: D1Database, kv: KVNamespace, userId: string): Promise<void> {
   try {
