@@ -194,15 +194,16 @@ auth.get("/github/callback", async (c) => {
   const user = await c.env.DB.prepare("SELECT id FROM users WHERE github_id = ?")
     .bind(ghUser.id).first<{ id: string }>();
 
-  // Detect signup vs login: if the DB id matches our generated id, it was an INSERT (new user)
-  emit(c.env, user!.id === userId ? "user_signup" : "user_login", "github");
-
   await createWelcomeDoc(c.env.DB, c.env.PAGES, user!.id);
 
   const sessionId = await createSession(c.env.DB, user!.id);
 
   const finalUser = await c.env.DB.prepare("SELECT username FROM users WHERE github_id = ?")
     .bind(ghUser.id).first<{ username: string }>();
+
+  // Detect signup vs login: if the DB id matches our generated id, it was an INSERT (new user)
+  emit(c.env, user!.id === userId ? "user_signup" : "user_login", `github:${finalUser!.username}`);
+
   c.header("Set-Cookie", sessionCookie(sessionId, SESSION_TTL / 1000));
   c.header("Set-Cookie", clearOauthStateCookie(), { append: true });
   return c.redirect(`https://${finalUser!.username}.md.page`, 302);
@@ -281,15 +282,16 @@ auth.get("/google/callback", async (c) => {
     const user = await c.env.DB.prepare("SELECT id FROM users WHERE google_id = ?")
       .bind(gUser.id).first<{ id: string }>();
 
-    // Detect signup vs login: if the DB id matches our generated id, it was an INSERT (new user)
-    emit(c.env, user!.id === userId ? "user_signup" : "user_login", "google");
-
     await createWelcomeDoc(c.env.DB, c.env.PAGES, user!.id);
 
     const sessionId = await createSession(c.env.DB, user!.id);
 
     const finalUser = await c.env.DB.prepare("SELECT username FROM users WHERE google_id = ?")
       .bind(gUser.id).first<{ username: string }>();
+
+    // Detect signup vs login: if the DB id matches our generated id, it was an INSERT (new user)
+    emit(c.env, user!.id === userId ? "user_signup" : "user_login", `google:${finalUser!.username}`);
+
     c.header("Set-Cookie", sessionCookie(sessionId, SESSION_TTL / 1000));
     c.header("Set-Cookie", clearOauthStateCookie(), { append: true });
     return c.redirect(`https://${finalUser!.username}.md.page`, 302);
