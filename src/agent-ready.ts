@@ -94,7 +94,7 @@ agentReady.get("/.well-known/api-catalog", (c) => {
     linkset: [
       {
         anchor: `${origin}/api/publish`,
-        "service-desc": [{ href: `${origin}/docs`, type: "text/html" }],
+        "service-desc": [{ href: `${origin}/openapi.json`, type: "application/json" }],
         "service-doc": [{ href: `${origin}/docs`, type: "text/html" }],
         status: [{ href: `${origin}/`, type: "text/html" }],
       },
@@ -268,6 +268,398 @@ npx skills add maypaz/md.page
 `;
   return c.text(body, 200, {
     "Content-Type": "text/markdown; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+  });
+});
+
+// --- /llms.txt — structured product description for LLMs ---
+
+agentReady.get("/llms.txt", (c) => {
+  const origin = new URL(c.req.url).origin;
+  const body = `# md.page
+
+> Instantly convert Markdown to a shareable HTML page.
+
+md.page is a web service that turns Markdown content into clean, hosted HTML pages with shareable URLs. It offers both anonymous temporary pages (24-hour expiry, no signup) and permanent pages with custom subdomains for authenticated users.
+
+## Use Cases
+
+- Share formatted documentation, notes, or reports as web pages
+- Publish markdown from AI agents, CLI tools, or scripts
+- Create quick shareable links for code snippets, READMEs, or changelogs
+- Host permanent documentation under a personal subdomain (username.md.page)
+
+## Capabilities
+
+- Converts Markdown to styled HTML with syntax highlighting
+- Supports Mermaid diagrams
+- Auto-generates Open Graph images for social sharing
+- Provides MCP server for native AI agent integration
+- Offers Claude Code skill and OpenClaw integration
+- API key authentication for programmatic access to permanent pages
+
+## Constraints
+
+- Anonymous pages expire after 24 hours
+- Maximum content size: 500KB per page
+- Rate limited: 10 requests per 10 seconds per IP
+- Permanent pages require Google OAuth sign-in
+- Maximum 10 permanent pages per user
+
+## API
+
+### Anonymous Publishing (no auth required)
+
+POST ${origin}/api/publish
+Content-Type: application/json
+
+{"markdown": "# Your content here"}
+
+Response: {"url": "https://md.page/abc123", "expires_at": "..."}
+
+### Authenticated API (requires API key)
+
+- POST /api/pages — Create permanent page
+- GET /api/pages — List your pages
+- PUT /api/pages/:slug — Update a page
+- DELETE /api/pages/:slug — Delete a page
+- POST /api/keys — Create API key
+- GET /api/keys — List API keys
+
+Authorization: Bearer <api-key>
+
+## Integration
+
+- MCP Server: npx -y mdpage-mcp
+- Claude Code Skill: npx skills add maypaz/md.page
+- OpenAPI Spec: ${origin}/openapi.json
+- API Documentation: ${origin}/docs
+
+## Links
+
+- Homepage: ${origin}
+- API Docs: ${origin}/docs
+- OpenAPI Spec: ${origin}/openapi.json
+- GitHub: https://github.com/maypaz/md.page
+- Privacy Policy: ${origin}/privacy
+- Login: ${origin}/login
+`;
+  return c.text(body, 200, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+  });
+});
+
+// --- /llms-full.txt ---
+
+agentReady.get("/llms-full.txt", (c) => {
+  const origin = new URL(c.req.url).origin;
+  const body = `# md.page — Full Documentation for LLMs
+
+> Instantly convert Markdown to a shareable HTML page.
+
+md.page is a web service that turns Markdown content into clean, hosted HTML pages with shareable URLs.
+
+## Product Overview
+
+md.page provides two tiers of service:
+
+1. **Anonymous pages** — No signup required. POST markdown to /api/publish and get a shareable URL. Pages expire after 24 hours.
+2. **Permanent pages** — Sign in with Google OAuth to get a personal subdomain (username.md.page). Create, update, and delete pages via authenticated API with API keys.
+
+## API Reference
+
+### POST /api/publish (Anonymous)
+
+No authentication required. Creates a temporary page.
+
+Request:
+\`\`\`
+POST ${origin}/api/publish
+Content-Type: application/json
+
+{"markdown": "# Hello World\\nYour markdown content here."}
+\`\`\`
+
+Response (201):
+\`\`\`json
+{"url": "https://md.page/abc123", "expires_at": "2026-04-20T12:00:00.000Z"}
+\`\`\`
+
+Errors:
+- 400: Missing or invalid markdown field
+- 413: Content too large (max 500KB)
+- 429: Rate limit exceeded (10 req / 10s per IP)
+
+### Authenticated Endpoints
+
+All require \`Authorization: Bearer <api-key>\` header.
+
+#### POST /api/pages — Create permanent page
+Request body: {"markdown": "...", "slug": "optional-slug"}
+Response: {"slug": "...", "url": "https://username.md.page/slug"}
+
+#### GET /api/pages — List pages
+Response: {"pages": [{"slug": "...", "title": "...", "updated_at": "..."}]}
+
+#### PUT /api/pages/:slug — Update page
+Request body: {"markdown": "..."}
+
+#### DELETE /api/pages/:slug — Delete page
+
+#### POST /api/keys — Create API key
+Request body: {"name": "my-key"}
+Response: {"key": "mdp_...", "name": "my-key"}
+
+#### GET /api/keys — List API keys
+Response: {"keys": [{"id": "...", "name": "...", "created_at": "..."}]}
+
+## MCP Server
+
+Install and configure the MCP server for AI agent integration:
+
+\`\`\`json
+{
+  "mcpServers": {
+    "mdpage": {
+      "command": "npx",
+      "args": ["-y", "mdpage-mcp"]
+    }
+  }
+}
+\`\`\`
+
+Available tool: \`publish_markdown\` — publishes markdown and returns a shareable URL.
+
+## Claude Code Skill
+
+\`\`\`
+npx skills add maypaz/md.page
+\`\`\`
+
+## Constraints
+
+- Anonymous pages expire after 24 hours
+- Maximum content size: 500KB
+- Rate limit: 10 requests per 10 seconds per IP
+- Permanent pages require Google OAuth authentication
+- Maximum 10 permanent pages per user
+- Supported markdown features: standard markdown, code blocks with syntax highlighting, Mermaid diagrams
+
+## Links
+
+- Homepage: ${origin}
+- API Docs: ${origin}/docs
+- OpenAPI Spec: ${origin}/openapi.json
+- GitHub: https://github.com/maypaz/md.page
+- Privacy: ${origin}/privacy
+`;
+  return c.text(body, 200, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+  });
+});
+
+// --- /openapi.json — OpenAPI 3.1 specification ---
+
+agentReady.get("/openapi.json", (c) => {
+  const origin = new URL(c.req.url).origin;
+  return c.json({
+    openapi: "3.1.0",
+    info: {
+      title: "md.page API",
+      version: "1.0.0",
+      description: "Convert Markdown to shareable web pages. Publish any markdown content as a beautiful, hosted HTML page with a shareable URL.",
+      contact: { url: "https://github.com/maypaz/md.page" },
+      license: { name: "MIT", url: "https://github.com/maypaz/md.page/blob/main/LICENSE" },
+    },
+    servers: [{ url: origin, description: "Production" }],
+    paths: {
+      "/api/publish": {
+        post: {
+          operationId: "publishAnonymous",
+          summary: "Publish anonymous page",
+          description: "Create a temporary shareable page from markdown. No authentication required. Page expires after 24 hours.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["markdown"],
+                  properties: {
+                    markdown: { type: "string", minLength: 1, maxLength: 500000, description: "Markdown content to publish" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Page created",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      url: { type: "string", format: "uri", description: "Shareable URL of the published page" },
+                      expires_at: { type: "string", format: "date-time", description: "ISO 8601 expiration timestamp" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid request — missing or invalid markdown field" },
+            "413": { description: "Content too large — maximum 500KB" },
+            "429": { description: "Rate limit exceeded — 10 requests per 10 seconds per IP" },
+          },
+        },
+      },
+      "/api/pages": {
+        get: {
+          operationId: "listPages",
+          summary: "List permanent pages",
+          description: "List all permanent pages for the authenticated user.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "List of pages",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      pages: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            slug: { type: "string" },
+                            title: { type: "string" },
+                            updated_at: { type: "string", format: "date-time" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Unauthorized" },
+          },
+        },
+        post: {
+          operationId: "createPage",
+          summary: "Create permanent page",
+          description: "Create a permanent page under the authenticated user's subdomain.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["markdown"],
+                  properties: {
+                    markdown: { type: "string", minLength: 1, maxLength: 500000 },
+                    slug: { type: "string", description: "Optional URL slug. Auto-generated from title if omitted." },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "Page created" },
+            "400": { description: "Invalid request" },
+            "401": { description: "Unauthorized" },
+            "409": { description: "Slug already exists" },
+          },
+        },
+      },
+      "/api/pages/{slug}": {
+        put: {
+          operationId: "updatePage",
+          summary: "Update permanent page",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "slug", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["markdown"],
+                  properties: {
+                    markdown: { type: "string", minLength: 1, maxLength: 500000 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Page updated" },
+            "401": { description: "Unauthorized" },
+            "404": { description: "Page not found" },
+          },
+        },
+        delete: {
+          operationId: "deletePage",
+          summary: "Delete permanent page",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "slug", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Page deleted" },
+            "401": { description: "Unauthorized" },
+            "404": { description: "Page not found" },
+          },
+        },
+      },
+      "/api/keys": {
+        get: {
+          operationId: "listKeys",
+          summary: "List API keys",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "List of API keys" },
+            "401": { description: "Unauthorized" },
+          },
+        },
+        post: {
+          operationId: "createKey",
+          summary: "Create API key",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name"],
+                  properties: {
+                    name: { type: "string", description: "Human-readable name for the key" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "API key created" },
+            "401": { description: "Unauthorized" },
+          },
+        },
+      },
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          description: "API key obtained from the md.page dashboard. Format: mdp_...",
+        },
+      },
+    },
+  }, 200, {
+    "Content-Type": "application/json",
     "Cache-Control": "public, max-age=3600",
   });
 });

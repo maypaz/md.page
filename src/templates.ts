@@ -238,6 +238,7 @@ export function landingPageHtml(origin: string): string {
   <meta property="og:url" content="${origin}">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"md.page","url":"${origin}","description":"Instantly convert Markdown to a shareable HTML page. Publish markdown as beautiful web pages with one API call.","applicationCategory":"DeveloperApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Organization","name":"md.page","url":"${origin}"},"softwareHelp":{"@type":"WebPage","url":"${origin}/docs"},"featureList":["Markdown to HTML conversion","Shareable page URLs","Anonymous 24-hour pages","Permanent pages with custom subdomains","MCP server for AI agents","REST API","Mermaid diagram support","Auto-generated Open Graph images"]}</script>
   <style>
     :root {
       --green: ${BRAND_COLOR};
