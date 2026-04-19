@@ -9,6 +9,7 @@ import { pageTemplate, expiredPageHtml, landingPageHtml, apiDocsPageHtml, privac
 import { auth, getUserFromCookie } from "./auth";
 import { api } from "./api";
 import { extractSubdomain, subdomainApp } from "./subdomain";
+import { agentReady, LANDING_PAGE_MARKDOWN } from "./agent-ready";
 
 export { generateId, escapeHtml, stripMarkdownInline, extractMeta, hashKey } from "./utils";
 export { wrapText, parseMarkdownBlocks, generateOgSvg } from "./og";
@@ -176,11 +177,26 @@ app.get("/og/:filename", async (c) => {
   }
 });
 
+// Agent-readiness routes (robots.txt, sitemap, .well-known/*)
+app.route("", agentReady);
+
 // Landing page
 app.get("/", (c) => {
   const url = new URL(c.req.url);
   emit(c.env, "homepage_visit");
-  return c.html(landingPageHtml(url.origin));
+
+  // Markdown content negotiation
+  const accept = c.req.header("accept") || "";
+  if (accept.includes("text/markdown")) {
+    return c.text(LANDING_PAGE_MARKDOWN, 200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+    });
+  }
+
+  // Link headers for agent discovery (RFC 8288 / RFC 9727)
+  return c.html(landingPageHtml(url.origin), 200, {
+    "Link": `</.well-known/api-catalog>; rel="api-catalog", </docs>; rel="service-doc", </.well-known/mcp/server-card.json>; rel="describedby"`,
+  });
 });
 
 // Privacy policy

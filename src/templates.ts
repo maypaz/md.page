@@ -697,6 +697,29 @@ export function landingPageHtml(origin: string): string {
       trackClick('copy_prompt_click');
     }
   </script>
+  <script>
+    // WebMCP — expose site tools to AI agents via the browser
+    if (typeof navigator !== 'undefined' && navigator.modelContext) {
+      navigator.modelContext.registerTool({
+        name: 'publish-markdown',
+        description: 'Publish markdown content as a shareable web page on md.page. Returns a URL that expires in 24 hours.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            markdown: { type: 'string', description: 'The markdown content to publish' }
+          },
+          required: ['markdown']
+        },
+        execute: function(input) {
+          return fetch('/api/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ markdown: input.markdown })
+          }).then(function(r) { return r.json(); });
+        }
+      });
+    }
+  </script>
 </body>
 </html>`;
 }
