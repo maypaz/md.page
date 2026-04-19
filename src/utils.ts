@@ -52,10 +52,10 @@ export async function hashKey(key: string): Promise<string> {
   return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function emit(env: Env, event: string, detail = "") {
+export function emit(env: Env, event: string, detail = "", extra = "") {
   try {
     env.ANALYTICS.writeDataPoint({
-      blobs: [event, detail],
+      blobs: [event, detail, extra],
       indexes: [event],
     });
   } catch {

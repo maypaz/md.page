@@ -207,14 +207,14 @@ auth.get("/google/callback", async (c) => {
 
     // Detect signup vs login: if the DB id matches our generated id, it was an INSERT (new user)
     const isNewUser = user!.id === userId;
-    emit(c.env, isNewUser ? "user_signup" : "user_login", "google");
-
     await createWelcomeDoc(c.env.DB, c.env.PAGES, user!.id);
 
     const sessionId = await createSession(c.env.DB, user!.id);
 
     const finalUser = await c.env.DB.prepare("SELECT username FROM users WHERE google_id = ?")
       .bind(gUser.id).first<{ username: string }>();
+
+    emit(c.env, isNewUser ? "user_signup" : "user_login", "google", finalUser!.username);
     c.header("Set-Cookie", sessionCookie(sessionId, SESSION_TTL / 1000));
     c.header("Set-Cookie", clearOauthStateCookie(), { append: true });
     const redirectPath = isNewUser ? "/welcome" : "";
