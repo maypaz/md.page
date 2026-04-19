@@ -51,7 +51,7 @@ api.post("/keys", async (c) => {
   const count = await c.env.DB.prepare("SELECT COUNT(*) as cnt FROM api_keys WHERE user_id = ?")
     .bind(user.id).first<{ cnt: number }>();
   if (count && count.cnt >= 5) {
-    return c.json({ error: "Maximum 5 API keys allowed" }, 400);
+    return c.json({ error: "LIMIT_EXCEEDED", message: "Maximum 5 API keys allowed", hint: "Delete an existing API key before creating a new one." }, 400);
   }
 
   const rawKey = generateApiKey();
@@ -95,7 +95,7 @@ api.patch("/keys/:id", async (c) => {
     .bind(body.label || null, keyId, user.id).run();
 
   if (!result.meta.changes) {
-    return c.json({ error: "Key not found" }, 404);
+    return c.json({ error: "NOT_FOUND", message: "Key not found", hint: "Check the key ID and ensure it belongs to your account." }, 404);
   }
 
   return c.json({ ok: true });
@@ -110,7 +110,7 @@ api.delete("/keys/:id", async (c) => {
     .bind(keyId, user.id).run();
 
   if (!result.meta.changes) {
-    return c.json({ error: "Key not found" }, 404);
+    return c.json({ error: "NOT_FOUND", message: "Key not found", hint: "Check the key ID and ensure it belongs to your account." }, 404);
   }
 
   return c.json({ ok: true });
@@ -134,18 +134,18 @@ api.post("/pages", async (c) => {
   const body = await c.req.json<{ markdown: string; title?: string; slug?: string; visibility?: string }>();
 
   if (!body.markdown || typeof body.markdown !== "string") {
-    return c.json({ error: "Missing 'markdown' field" }, 400);
+    return c.json({ error: "MISSING_FIELD", message: "Missing 'markdown' field", hint: "Include a 'markdown' string field in your JSON request body." }, 400);
   }
 
   if (body.markdown.length > 500_000) {
-    return c.json({ error: "Content too large (max 500KB)" }, 413);
+    return c.json({ error: "CONTENT_TOO_LARGE", message: "Content too large (max 500KB)", hint: "Reduce your markdown content to under 500,000 characters." }, 413);
   }
 
   // Check page limit
   const count = await c.env.DB.prepare("SELECT COUNT(*) as cnt FROM pages WHERE user_id = ?")
     .bind(user.id).first<{ cnt: number }>();
   if (count && count.cnt >= MAX_PAGES) {
-    return c.json({ error: `Maximum ${MAX_PAGES} pages allowed` }, 400);
+    return c.json({ error: "LIMIT_EXCEEDED", message: `Maximum ${MAX_PAGES} pages allowed`, hint: "Delete an existing page before creating a new one." }, 400);
   }
 
   const meta = extractMeta(body.markdown);
@@ -154,14 +154,14 @@ api.post("/pages", async (c) => {
   const visibility = body.visibility === "private" ? "private" : "public";
 
   if (isReservedSlug(slug)) {
-    return c.json({ error: "This slug is reserved" }, 400);
+    return c.json({ error: "RESERVED_SLUG", message: "This slug is reserved", hint: "Choose a different slug for your page." }, 400);
   }
 
   // Check slug uniqueness
   const existing = await c.env.DB.prepare("SELECT id FROM pages WHERE user_id = ? AND slug = ?")
     .bind(user.id, slug).first();
   if (existing) {
-    return c.json({ error: "A page with this slug already exists" }, 409);
+    return c.json({ error: "SLUG_CONFLICT", message: "A page with this slug already exists", hint: "Use a different slug or update the existing page with PUT /api/pages/:id." }, 409);
   }
 
   const id = generateId();
@@ -216,7 +216,7 @@ api.put("/pages/:id", async (c) => {
 
   const page = await c.env.DB.prepare("SELECT id FROM pages WHERE id = ? AND user_id = ?")
     .bind(pageId, user.id).first();
-  if (!page) return c.json({ error: "Page not found" }, 404);
+  if (!page) return c.json({ error: "NOT_FOUND", message: "Page not found", hint: "Check the page ID and ensure it belongs to your account." }, 404);
 
   const body = await c.req.json<{ markdown?: string; title?: string; slug?: string; visibility?: string }>();
 
@@ -235,13 +235,13 @@ api.put("/pages/:id", async (c) => {
 
   if (body.slug) {
     if (isReservedSlug(body.slug)) {
-      return c.json({ error: "This slug is reserved" }, 400);
+      return c.json({ error: "RESERVED_SLUG", message: "This slug is reserved", hint: "Choose a different slug for your page." }, 400);
     }
     // Check slug uniqueness
     const existing = await c.env.DB.prepare("SELECT id FROM pages WHERE user_id = ? AND slug = ? AND id != ?")
       .bind(user.id, body.slug, pageId).first();
     if (existing) {
-      return c.json({ error: "A page with this slug already exists" }, 409);
+      return c.json({ error: "SLUG_CONFLICT", message: "A page with this slug already exists", hint: "Use a different slug or update the existing page with PUT /api/pages/:id." }, 409);
     }
     updates.push("slug = ?");
     values.push(body.slug);
@@ -249,7 +249,7 @@ api.put("/pages/:id", async (c) => {
 
   if (body.markdown) {
     if (body.markdown.length > 500_000) {
-      return c.json({ error: "Content too large (max 500KB)" }, 413);
+      return c.json({ error: "CONTENT_TOO_LARGE", message: "Content too large (max 500KB)", hint: "Reduce your markdown content to under 500,000 characters." }, 413);
     }
 
     const meta = extractMeta(body.markdown);
@@ -294,7 +294,7 @@ api.delete("/pages/:id", async (c) => {
     .bind(pageId, user.id).run();
 
   if (!result.meta.changes) {
-    return c.json({ error: "Page not found" }, 404);
+    return c.json({ error: "NOT_FOUND", message: "Page not found", hint: "Check the page ID and ensure it belongs to your account." }, 404);
   }
 
   // Remove content from KV

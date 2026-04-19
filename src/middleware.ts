@@ -25,7 +25,15 @@ export const authRequired = createMiddleware<AuthEnv>(async (c, next) => {
   }
 
   if (!user) {
-    return c.json({ error: "Unauthorized" }, 401);
+    return c.json({
+      error: "UNAUTHORIZED",
+      message: "Authentication required",
+      hint: "Include an Authorization: Bearer <api-key> header. Get an API key from your md.page dashboard.",
+      documentation_url: "https://md.page/docs",
+      auth_info: "https://md.page/.well-known/oauth-authorization-server",
+    }, 401, {
+      "WWW-Authenticate": "Bearer realm=\"md.page\", error=\"invalid_token\"",
+    });
   }
 
   c.set("user", user);

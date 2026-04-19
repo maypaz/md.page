@@ -361,8 +361,9 @@ describe("Worker", () => {
         })
       );
       expect(res.status).toBe(400);
-      const data = await res.json<{ error: string }>();
-      expect(data.error).toContain("markdown");
+      const data = await res.json<{ error: string; message: string }>();
+      expect(data.error).toBe("MISSING_FIELD");
+      expect(data.message).toContain("markdown");
     });
 
     it("returns 400 when markdown is not a string", async () => {
@@ -374,8 +375,9 @@ describe("Worker", () => {
         })
       );
       expect(res.status).toBe(400);
-      const data = await res.json<{ error: string }>();
-      expect(data.error).toContain("markdown");
+      const data = await res.json<{ error: string; message: string }>();
+      expect(data.error).toBe("MISSING_FIELD");
+      expect(data.message).toContain("markdown");
     });
 
     it("returns 400 for invalid JSON body", async () => {
@@ -387,8 +389,8 @@ describe("Worker", () => {
         })
       );
       expect(res.status).toBe(400);
-      const data = await res.json<{ error: string }>();
-      expect(data.error).toContain("Invalid JSON");
+      const data = await res.json<{ error: string; message: string }>();
+      expect(data.error).toBe("INVALID_JSON");
     });
 
     it("returns 413 when content exceeds 500 KB", async () => {

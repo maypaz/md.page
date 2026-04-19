@@ -31,6 +31,36 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
 const TTL = 86400; // 24 hours
 const OG_IMAGE_FALLBACK = Uint8Array.from(atob(OG_IMAGE_PNG_B64), c => c.charCodeAt(0));
 
+// Global error handler — always return structured JSON errors
+app.onError((err, c) => {
+  return c.json({
+    error: "INTERNAL_ERROR",
+    message: "An unexpected error occurred",
+    hint: "Try again later. If the problem persists, check https://md.page/docs for API usage.",
+    documentation_url: "https://md.page/docs",
+    retry_after: 5,
+  }, 500, {
+    "Retry-After": "5",
+  });
+});
+
+// Catch-all 404 — always return structured JSON
+app.notFound((c) => {
+  return c.json({
+    error: "NOT_FOUND",
+    message: "The requested resource was not found",
+    hint: "Check the API documentation at https://md.page/docs or the OpenAPI spec at https://md.page/openapi.json.",
+    documentation_url: "https://md.page/docs",
+    available_endpoints: {
+      publish: "POST /api/publish",
+      pages: "GET/POST /api/pages",
+      keys: "GET/POST /api/keys",
+      openapi: "GET /openapi.json",
+      llms_txt: "GET /llms.txt",
+    },
+  }, 404);
+});
+
 // Subdomain routing — intercept requests to username.md.page
 // Let /api/* and /auth/* fall through to the main app so they work from subdomains
 app.use("*", async (c, next) => {
@@ -66,6 +96,16 @@ app.post("/api/event", async (c) => {
   return c.text("ok");
 });
 
+// GET /api/publish — method not allowed
+app.get("/api/publish", (c) => {
+  return c.json({
+    error: "METHOD_NOT_ALLOWED",
+    message: "Use POST to publish markdown",
+    hint: "Send a POST request with Content-Type: application/json and body {\"markdown\": \"...\"}.",
+    documentation_url: "https://md.page/openapi.json",
+  }, 405, { "Allow": "POST" });
+});
+
 // POST /api/publish — create a page
 // Rate limiting handled by Cloudflare WAF rule (10 req / 10s per IP)
 app.post("/api/publish", async (c) => {
@@ -73,11 +113,11 @@ app.post("/api/publish", async (c) => {
     const body = await c.req.json<{ markdown: string }>();
 
     if (!body.markdown || typeof body.markdown !== "string") {
-      return c.json({ error: "Missing 'markdown' field" }, 400);
+      return c.json({ error: "MISSING_FIELD", message: "Missing 'markdown' field", hint: "Include a 'markdown' string field in your JSON request body.", documentation_url: "https://md.page/openapi.json" }, 400);
     }
 
     if (body.markdown.length > 500_000) {
-      return c.json({ error: "Content too large (max 500KB)" }, 413);
+      return c.json({ error: "CONTENT_TOO_LARGE", message: "Content too large (max 500KB)", hint: "Reduce your markdown content to under 500,000 characters. Current size: " + body.markdown.length + " characters.", documentation_url: "https://md.page/openapi.json" }, 413);
     }
 
     const id = generateId();
@@ -95,28 +135,34 @@ app.post("/api/publish", async (c) => {
 
     return c.json({ url: pageUrl, expires_at: expiresAt }, 201);
   } catch {
-    return c.json({ error: "Invalid JSON body" }, 400);
+    return c.json({ error: "INVALID_JSON", message: "Invalid JSON body", hint: "Send a valid JSON object with Content-Type: application/json." }, 400);
   }
 });
 
 // Gate all v2 auth routes behind feature flag
 app.use("/auth/*", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.text("Coming soon", 404);
+  if (c.env.AUTH_ENABLED !== "true") return c.json({
+    error: "NOT_AVAILABLE",
+    message: "Authentication is not yet enabled",
+    hint: "Use the anonymous API (POST /api/publish) which requires no authentication. Check https://md.page/docs for details.",
+    documentation_url: "https://md.page/docs",
+    anonymous_api: "POST /api/publish — no auth required",
+  }, 404);
   await next();
 });
 app.route("/auth", auth);
 
 // Gate authenticated API routes behind feature flag
 app.use("/api/me", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "Coming soon" }, 404);
+  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "NOT_AVAILABLE", message: "This feature is not yet available", hint: "Check back later or visit https://md.page/docs for current API capabilities." }, 404);
   await next();
 });
 app.use("/api/keys/*", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "Coming soon" }, 404);
+  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "NOT_AVAILABLE", message: "This feature is not yet available", hint: "Check back later or visit https://md.page/docs for current API capabilities." }, 404);
   await next();
 });
 app.use("/api/pages/*", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "Coming soon" }, 404);
+  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "NOT_AVAILABLE", message: "This feature is not yet available", hint: "Check back later or visit https://md.page/docs for current API capabilities." }, 404);
   await next();
 });
 app.route("/api", api);
@@ -180,10 +226,36 @@ app.get("/og/:filename", async (c) => {
 // Agent-readiness routes (robots.txt, sitemap, .well-known/*)
 app.route("", agentReady);
 
+// Landing page markdown at /index.md
+app.get("/index.md", (c) => {
+  return c.text(LANDING_PAGE_MARKDOWN, 200, {
+    "Content-Type": "text/markdown; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+  });
+});
+
 // Landing page
 app.get("/", (c) => {
   const url = new URL(c.req.url);
   emit(c.env, "homepage_visit");
+
+  // ?mode=agent — structured JSON for AI agents
+  if (url.searchParams.get("mode") === "agent") {
+    return c.json({
+      name: "md.page",
+      description: "Instantly convert Markdown to a shareable HTML page.",
+      url: url.origin,
+      api: {
+        publish: { method: "POST", url: `${url.origin}/api/publish`, auth: "none", body: { markdown: "string (required)" }, response: { url: "string", expires_at: "string (ISO 8601)" } },
+        pages: { method: "POST/GET/PUT/DELETE", url: `${url.origin}/api/pages`, auth: "Bearer <api-key>" },
+        keys: { method: "POST/GET", url: `${url.origin}/api/keys`, auth: "Bearer <api-key>" },
+      },
+      auth: { anonymous: "No auth required for POST /api/publish", authenticated: "Google OAuth sign-in, then use API keys (Authorization: Bearer mdp_...)" },
+      capabilities: ["Markdown to HTML", "Shareable URLs", "24h anonymous pages", "Permanent pages with subdomains", "Mermaid diagrams", "OG images", "MCP server", "REST API"],
+      integrations: { mcp: "npx -y mdpage-mcp", skill: "npx skills add maypaz/md.page", openapi: `${url.origin}/openapi.json` },
+      links: { docs: `${url.origin}/docs`, privacy: `${url.origin}/privacy`, github: "https://github.com/maypaz/md.page", llms_txt: `${url.origin}/llms.txt` },
+    }, 200, { "Cache-Control": "public, max-age=3600" });
+  }
 
   // Markdown content negotiation
   const accept = c.req.header("accept") || "";
@@ -195,7 +267,7 @@ app.get("/", (c) => {
 
   // Link headers for agent discovery (RFC 8288 / RFC 9727)
   return c.html(landingPageHtml(url.origin), 200, {
-    "Link": `</.well-known/api-catalog>; rel="api-catalog", </docs>; rel="service-doc", </.well-known/mcp/server-card.json>; rel="describedby"`,
+    "Link": `</.well-known/api-catalog>; rel="api-catalog", </docs>; rel="service-doc", </.well-known/mcp/server-card.json>; rel="describedby", </llms.txt>; rel="alternate"; type="text/plain", </AGENTS.md>; rel="alternate"; type="text/markdown", </.well-known/agent.json>; rel="alternate"; type="application/json", </openapi.json>; rel="service-desc"; type="application/openapi+json"`,
   });
 });
 
