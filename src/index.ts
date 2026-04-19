@@ -5,7 +5,7 @@ import type { Env, PageData } from "./types";
 import { generateId, extractMeta, emit, escapeHtml } from "./utils";
 import { FAVICON_SVG, CLAUDE_LOGO_SVG, CURSOR_LOGO_SVG, OPENCLAW_LOGO_SVG, NANOCLAW_LOGO_SVG, LOGO_SVG, OG_IMAGE_PNG_B64 } from "./assets";
 import { renderOgPng, renderLandingOgPng } from "./og";
-import { pageTemplate, expiredPageHtml, landingPageHtml, privacyPageHtml, loginPageHtml } from "./templates";
+import { pageTemplate, expiredPageHtml, landingPageHtml, apiDocsPageHtml, privacyPageHtml, loginPageHtml } from "./templates";
 import { auth, getUserFromCookie } from "./auth";
 import { api } from "./api";
 import { extractSubdomain, subdomainApp } from "./subdomain";
@@ -222,10 +222,9 @@ app.get("/docs/new", async (c) => {
   return c.redirect(`https://${user.username}.md.page/new`, 302);
 });
 
-app.get("/docs", async (c) => {
-  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
-  if (!user) return c.redirect("/login");
-  return c.redirect(`https://${user.username}.md.page`, 302);
+app.get("/docs", (c) => {
+  const url = new URL(c.req.url);
+  return c.html(apiDocsPageHtml(url.origin));
 });
 
 // GET /:id — serve a published page

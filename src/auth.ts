@@ -206,7 +206,8 @@ auth.get("/google/callback", async (c) => {
       .bind(gUser.id).first<{ id: string }>();
 
     // Detect signup vs login: if the DB id matches our generated id, it was an INSERT (new user)
-    emit(c.env, user!.id === userId ? "user_signup" : "user_login", "google");
+    const isNewUser = user!.id === userId;
+    emit(c.env, isNewUser ? "user_signup" : "user_login", "google");
 
     await createWelcomeDoc(c.env.DB, c.env.PAGES, user!.id);
 
@@ -216,7 +217,8 @@ auth.get("/google/callback", async (c) => {
       .bind(gUser.id).first<{ username: string }>();
     c.header("Set-Cookie", sessionCookie(sessionId, SESSION_TTL / 1000));
     c.header("Set-Cookie", clearOauthStateCookie(), { append: true });
-    return c.redirect(`https://${finalUser!.username}.md.page`, 302);
+    const redirectPath = isNewUser ? "/welcome" : "";
+    return c.redirect(`https://${finalUser!.username}.md.page${redirectPath}`, 302);
   } catch (err) {
     console.error("Google OAuth callback error");
     return c.text("Authentication failed. Please try again.", 500);

@@ -1,5 +1,8 @@
+/** Single brand color used across the entire site */
+export const BRAND_COLOR = "#10b981";
+
 // Shared icon shape (48x48 viewBox) used by favicon, logo, and OG images
-export const ICON_SVG_INNER = `<rect width="48" height="48" rx="11" fill="#4285F4"/>
+export const ICON_SVG_INNER = `<rect width="48" height="48" rx="11" fill="${BRAND_COLOR}"/>
   <g stroke="#fff" stroke-width="4.5" stroke-linecap="round" fill="none" transform="translate(11, 8)">
     <line x1="11" y1="2" x2="7" y2="32"/>
     <line x1="21" y1="2" x2="17" y2="32"/>
