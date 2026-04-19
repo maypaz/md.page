@@ -214,7 +214,7 @@ auth.get("/google/callback", async (c) => {
     const finalUser = await c.env.DB.prepare("SELECT username FROM users WHERE google_id = ?")
       .bind(gUser.id).first<{ username: string }>();
 
-    emit(c.env, isNewUser ? "user_signup" : "user_login", "google", finalUser!.username);
+    emit(c.env, isNewUser ? "user_signup" : "user_login", `google:${finalUser!.username}`);
     c.header("Set-Cookie", sessionCookie(sessionId, SESSION_TTL / 1000));
     c.header("Set-Cookie", clearOauthStateCookie(), { append: true });
     const redirectPath = isNewUser ? "/welcome" : "";
