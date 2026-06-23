@@ -75,6 +75,56 @@ export function pageTemplate(content: string, options: TemplateOptions = {}): st
     }
     pre code { background: none; padding: 0; color: inherit; }
     pre.mermaid { background: none; color: inherit; text-align: center; padding: 1rem 0; }
+    .mermaid-wrapper { position: relative; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 8px; cursor: grab; }
+    .mermaid-wrapper:active { cursor: grabbing; }
+    .mermaid-wrapper:hover .mermaid-btn-bar { opacity: 1; }
+    .mermaid-btn-bar {
+      position: absolute; top: 8px; right: 8px; z-index: 10;
+      display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s;
+    }
+    .mermaid-btn-bar button {
+      width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db;
+      background: rgba(255,255,255,0.9); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s; padding: 0;
+    }
+    .mermaid-btn-bar button:hover { background: #f3f4f6; }
+    .mermaid-btn-bar button svg { width: 16px; height: 16px; color: #374151; }
+    .mermaid-fs-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(255,255,255,0.97); display: flex; flex-direction: column;
+    }
+    .mermaid-fs-toolbar {
+      display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+      padding: 12px 16px; background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(8px); border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+    }
+    .mermaid-fs-toolbar span { margin-right: auto; font-size: 0.85rem; font-weight: 600; color: #6b7280; user-select: none; }
+    .mermaid-fs-toolbar button {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid #d1d5db;
+      background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s; padding: 0;
+    }
+    .mermaid-fs-toolbar button:hover { background: #f3f4f6; }
+    .mermaid-fs-toolbar button svg { width: 18px; height: 18px; color: #374151; }
+    .mermaid-fs-viewport {
+      flex: 1; overflow: hidden; cursor: grab; position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mermaid-fs-viewport:active { cursor: grabbing; }
+    .mermaid-fs-canvas svg { display: block; max-width: none; max-height: none; }
+    @media (prefers-color-scheme: dark) {
+      .mermaid-wrapper { border-color: #444; }
+      .mermaid-btn-bar button { background: rgba(42,42,42,0.9); border-color: #555; }
+      .mermaid-btn-bar button:hover { background: #3a3a3a; }
+      .mermaid-btn-bar button svg { color: #e5e5e5; }
+      .mermaid-fs-overlay { background: rgba(26,26,26,0.97); }
+      .mermaid-fs-toolbar { background: rgba(26,26,26,0.8); border-bottom-color: #444; }
+      .mermaid-fs-toolbar span { color: #aaa; }
+      .mermaid-fs-toolbar button { background: #2a2a2a; border-color: #555; }
+      .mermaid-fs-toolbar button:hover { background: #3a3a3a; }
+      .mermaid-fs-toolbar button svg { color: #e5e5e5; }
+    }
     blockquote {
       border-left: 3px solid #d1d5db;
       padding-left: 1rem;
@@ -170,12 +220,87 @@ export function pageTemplate(content: string, options: TemplateOptions = {}): st
   <div class="footer">
     <a href="https://md.page" target="_blank"><svg class="logo-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="11" fill="${BRAND_COLOR}"/><g stroke="#fff" stroke-width="4.5" stroke-linecap="round" fill="none" transform="translate(11, 8)"><line x1="11" y1="2" x2="7" y2="32"/><line x1="21" y1="2" x2="17" y2="32"/><line x1="4" y1="11" x2="25" y2="11"/><line x1="3" y1="23" x2="24" y2="23"/></g></svg> Made with <span class="brand">md.page</span></a>
   </div>${content.includes('class="mermaid"') ? `
+  <script src="https://cdn.jsdelivr.net/npm/panzoom@9/dist/panzoom.min.js"></script>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
     mermaid.initialize({
       startOnLoad: true,
       theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
     });
+    await mermaid.run();
+
+    var expandSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+    var resetSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+    var closeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    document.querySelectorAll('pre.mermaid').forEach(function(el) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'mermaid-wrapper';
+      el.parentNode.insertBefore(wrapper, el);
+      wrapper.appendChild(el);
+
+      wrapper.style.height = wrapper.offsetHeight + 'px';
+
+      var pz = panzoom(el, { smoothScroll: false, minZoom: 0.1, maxZoom: 10 });
+
+      var bar = document.createElement('div');
+      bar.className = 'mermaid-btn-bar';
+      var btnReset = document.createElement('button');
+      btnReset.title = 'Reset view';
+      btnReset.innerHTML = resetSvg;
+      btnReset.addEventListener('click', function(e) { e.stopPropagation(); pz.moveTo(0, 0); pz.zoomAbs(0, 0, 1); });
+      var btnExpand = document.createElement('button');
+      btnExpand.title = 'View fullscreen';
+      btnExpand.innerHTML = expandSvg;
+      btnExpand.addEventListener('click', function(e) { e.stopPropagation(); openMermaidFs(el); });
+      bar.appendChild(btnReset);
+      bar.appendChild(btnExpand);
+      wrapper.appendChild(bar);
+    });
+
+    function openMermaidFs(el) {
+      var svgEl = el.querySelector('svg');
+      if (!svgEl) return;
+      var svgClone = svgEl.cloneNode(true);
+
+      var overlay = document.createElement('div');
+      overlay.className = 'mermaid-fs-overlay';
+
+      var toolbar = document.createElement('div');
+      toolbar.className = 'mermaid-fs-toolbar';
+      toolbar.innerHTML = '<span>Mermaid diagram</span>';
+      var btnReset = document.createElement('button'); btnReset.title = 'Reset view'; btnReset.innerHTML = resetSvg;
+      var btnClose = document.createElement('button'); btnClose.title = 'Close (Esc)'; btnClose.innerHTML = closeSvg;
+      toolbar.appendChild(btnReset);
+      toolbar.appendChild(btnClose);
+      overlay.appendChild(toolbar);
+
+      var viewport = document.createElement('div');
+      viewport.className = 'mermaid-fs-viewport';
+      var canvas = document.createElement('div');
+      canvas.className = 'mermaid-fs-canvas';
+      canvas.appendChild(svgClone);
+      viewport.appendChild(canvas);
+      overlay.appendChild(viewport);
+      document.body.appendChild(overlay);
+      document.body.style.overflow = 'hidden';
+
+      var pz = panzoom(canvas, { smoothScroll: false, minZoom: 0.1, maxZoom: 10 });
+
+      btnReset.addEventListener('click', function() { pz.moveTo(0, 0); pz.zoomAbs(0, 0, 1); });
+
+      function closeFn() {
+        pz.dispose();
+        document.body.removeChild(overlay);
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', onKey);
+      }
+      btnClose.addEventListener('click', closeFn);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay || e.target === viewport) closeFn(); });
+
+      function onKey(e) { if (e.key === 'Escape') closeFn(); }
+      document.addEventListener('keydown', onKey);
+    }
   </script>` : ''}
 </body>
 </html>`;
