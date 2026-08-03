@@ -629,7 +629,7 @@ export function landingPageHtml(origin: string): string {
       fetch('/api/event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: event }),
+        body: JSON.stringify({ event: event, ref: document.referrer || '' }),
       }).catch(function() {});
     }
 

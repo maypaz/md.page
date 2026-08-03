@@ -86,10 +86,13 @@ app.use("/api/*", cors({
 // POST /api/event — client-side event tracking
 app.post("/api/event", async (c) => {
   try {
-    const body = await c.req.json<{ event: string }>();
+    const body = await c.req.json<{ event: string; ref?: string }>();
     const allowed = ["github_click", "copy_prompt_click", "copy_skill_claude", "copy_skill_openclaw", "copy_mcp", "copy_api_curl", "try_it_cta_click", "try_publish"];
     if (body.event && allowed.includes(body.event)) {
-      emit(c.env, body.event);
+      // The beacon's own Referer is always our page — use the client-reported
+      // document.referrer instead so acquisition data reflects the real source.
+      const ref = typeof body.ref === "string" ? body.ref.slice(0, 256) : "";
+      emit(c.env, body.event, "", c.req.raw, { ref });
     }
   } catch {
     // ignore
@@ -116,7 +119,7 @@ app.post("/api/publish", async (c) => {
     const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
     const { success } = await c.env.PUBLISH_LIMITER.limit({ key: ip });
     if (!success) {
-      emit(c.env, "publish_rate_limited", "per_ip");
+      emit(c.env, "publish_rate_limited", "per_ip", c.req.raw);
       return c.json({
         error: "RATE_LIMITED",
         message: "Too many publishes from this IP",
@@ -129,7 +132,7 @@ app.post("/api/publish", async (c) => {
   if (c.env.PUBLISH_GLOBAL_LIMITER) {
     const { success } = await c.env.PUBLISH_GLOBAL_LIMITER.limit({ key: "global" });
     if (!success) {
-      emit(c.env, "publish_rate_limited", "global");
+      emit(c.env, "publish_rate_limited", "global", c.req.raw);
       return c.json({
         error: "RATE_LIMITED",
         message: "Service is temporarily over capacity",
@@ -160,7 +163,7 @@ app.post("/api/publish", async (c) => {
 
     const pageUrl = `${url.origin}/${id}`;
 
-    emit(c.env, "page_publish");
+    emit(c.env, "page_publish", "", c.req.raw);
 
     return c.json({ url: pageUrl, expires_at: expiresAt }, 201);
   } catch {
@@ -239,7 +242,7 @@ app.get("/index.md", (c) => {
 // Landing page
 app.get("/", (c) => {
   const url = new URL(c.req.url);
-  emit(c.env, "homepage_visit");
+  emit(c.env, "homepage_visit", "", c.req.raw);
 
   // ?mode=agent — structured JSON for AI agents
   if (url.searchParams.get("mode") === "agent") {
@@ -299,7 +302,7 @@ app.get("/:id{[a-zA-Z0-9]{6}}", async (c) => {
   const ogImageUrl = `${url.origin}/og/${id}.png`;
   const html = pageTemplate(page.html, { title: page.title, description: page.description, pageUrl, origin: url.origin, ogImageUrl, ogType: "article" });
 
-  emit(c.env, "page_view", id);
+  emit(c.env, "page_view", id, c.req.raw);
 
   return c.html(html, 200, {
     "X-Robots-Tag": "noindex",
