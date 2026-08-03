@@ -152,6 +152,8 @@ View a published page. Returns rendered HTML.
 
 ## Accounts & Subdomains
 
+> Accounts, permanent pages, and API keys are features of the hosted service at [md.page](https://md.page). This repository contains the open-source engine — anonymous publishing, rendering, OG images, and the agent-facing API — which you can [self-host](#self-hosting).
+
 Sign in at [md.page/login](https://md.page/login) with Google to get:
 
 - **Your own subdomain** — `username.md.page`
@@ -225,7 +227,7 @@ curl https://md.page/api/me \
 
 ## Self-Hosting
 
-md.page runs on Cloudflare Workers with KV storage. Deploy your own instance:
+md.page runs on Cloudflare Workers with KV storage. A self-hosted instance gives you anonymous publishing (24h expiry), the full agent-facing surface (OpenAPI, llms.txt, MCP discovery), and auto-generated OG images. The only required binding is a single KV namespace.
 
 ### Prerequisites
 
@@ -242,14 +244,17 @@ cd md.page
 # Install dependencies
 npm install
 
-# Create a KV namespace
-npx wrangler kv namespace create PAGES
+# Create your config
+cp wrangler.toml.example wrangler.toml
 
-# Update wrangler.toml with your KV namespace ID
+# Create a KV namespace and put its id in wrangler.toml
+npx wrangler kv namespace create PAGES
 
 # Deploy
 npx wrangler deploy
 ```
+
+Analytics, the landing-page video bucket, and publish rate limiting are optional — see the comments in `wrangler.toml.example`.
 
 ### Local Development
 
@@ -261,9 +266,8 @@ npm run dev
 ## Tech Stack
 
 - **Runtime:** [Cloudflare Workers](https://workers.cloudflare.com/) ([Hono](https://hono.dev/) framework)
-- **Storage:** [Cloudflare KV](https://developers.cloudflare.com/kv/) (page content), [D1](https://developers.cloudflare.com/d1/) (users, sessions, keys, pages metadata), [R2](https://developers.cloudflare.com/r2/) (assets)
+- **Storage:** [Cloudflare KV](https://developers.cloudflare.com/kv/) (page content), [R2](https://developers.cloudflare.com/r2/) (assets, optional)
 - **Markdown:** [markdown-it](https://github.com/markdown-it/markdown-it)
-- **Auth:** Google OAuth 2.0
 
 ## Contributing
 

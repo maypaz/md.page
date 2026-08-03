@@ -147,8 +147,8 @@ agentReady.get("/.well-known/api-catalog", (c) => {
 agentReady.get("/.well-known/oauth-authorization-server", (c) => {
   const origin = new URL(c.req.url).origin;
   return c.json({
-    issuer: origin,
-    authorization_endpoint: `${origin}/auth/google`,
+    issuer: "https://md.page",
+    authorization_endpoint: "https://md.page/auth/google",
     token_endpoint: "https://oauth2.googleapis.com/token",
     jwks_uri: "https://www.googleapis.com/oauth2/v3/certs",
     grant_types_supported: ["authorization_code"],
@@ -166,8 +166,8 @@ agentReady.get("/.well-known/oauth-authorization-server", (c) => {
 agentReady.get("/.well-known/openid-configuration", (c) => {
   const origin = new URL(c.req.url).origin;
   return c.json({
-    issuer: origin,
-    authorization_endpoint: `${origin}/auth/google`,
+    issuer: "https://md.page",
+    authorization_endpoint: "https://md.page/auth/google",
     token_endpoint: "https://oauth2.googleapis.com/token",
     userinfo_endpoint: "https://www.googleapis.com/oauth2/v2/userinfo",
     jwks_uri: "https://www.googleapis.com/oauth2/v3/certs",
@@ -188,7 +188,7 @@ agentReady.get("/.well-known/oauth-protected-resource", (c) => {
   const origin = new URL(c.req.url).origin;
   return c.json({
     resource: origin,
-    authorization_servers: [origin],
+    authorization_servers: ["https://md.page"],
     scopes_supported: ["openid", "email", "profile"],
     bearer_methods_supported: ["header"],
   }, 200, {
@@ -218,8 +218,8 @@ agentReady.get("/.well-known/agent-card.json", (c) => {
       },
       {
         name: "manage_pages",
-        description: "Create, list, update, and delete permanent pages under a personal subdomain. Requires API key authentication.",
-        endpoint: `${origin}/api/pages`,
+        description: "Create, list, update, and delete permanent pages under a personal subdomain. Requires API key authentication. Served by the hosted md.page service.",
+        endpoint: "https://md.page/api/pages",
         method: "POST",
         inputContentType: "application/json",
         outputContentType: "application/json",
@@ -230,7 +230,7 @@ agentReady.get("/.well-known/agent-card.json", (c) => {
     openapi: `${origin}/openapi.json`,
     authentication: {
       anonymous: { endpoints: ["/api/publish"], method: "none" },
-      authenticated: { endpoints: ["/api/pages", "/api/keys"], method: "bearer", description: "API key (Authorization: Bearer mdp_...)" },
+      authenticated: { endpoints: ["https://md.page/api/pages", "https://md.page/api/keys"], method: "bearer", description: "API key (Authorization: Bearer mdp_...) — hosted md.page service" },
     },
   }, 200, {
     "Content-Type": "application/json",
@@ -301,7 +301,7 @@ agentReady.get("/pricing.md", (c) => {
 - Max content size: 500KB per page
 - Cost: **Free**
 
-## Authenticated Tier — Permanent Pages
+## Authenticated Tier — Permanent Pages (hosted at https://md.page)
 
 - Sign in with Google OAuth (free)
 - Personal subdomain: username.md.page
@@ -517,6 +517,8 @@ Response: {"url": "https://md.page/abc123", "expires_at": "..."}
 
 ### Authenticated API (requires API key)
 
+Base URL: https://md.page (hosted service)
+
 - POST /api/pages — Create permanent page
 - GET /api/pages — List your pages
 - PUT /api/pages/:slug — Update a page
@@ -549,7 +551,7 @@ If you are an AI agent or LLM, here is how to use md.page:
 1. To publish markdown as a shareable page, send a POST request to ${origin}/api/publish with Content-Type: application/json and body {"markdown": "<your content>"}.
 2. The response includes a "url" field with the shareable link and an "expires_at" timestamp (24 hours from creation).
 3. No authentication, API key, or signup is required for anonymous pages.
-4. For permanent pages, the user must sign in with Google OAuth and create an API key at ${origin}/docs.
+4. For permanent pages, the user must sign in with Google OAuth at https://md.page and create an API key there.
 5. Use the MCP server (npx -y mdpage-mcp) for native tool integration, or the Claude Code skill (npx skills add maypaz/md.page).
 6. Maximum content size is 500KB. Rate limit is 10 requests per 10 seconds per IP.
 
@@ -592,6 +594,7 @@ Pages expire after 24 hours. Max size: 500KB. Rate limit: 10 req / 10s per IP.
 
 ## Authenticated API (requires API key)
 
+Base URL: https://md.page (hosted service)
 Authorization: Bearer <api-key>
 
 - POST /api/pages — Create permanent page (body: {"markdown": "...", "slug": "optional"})
@@ -663,6 +666,7 @@ Errors:
 
 ### Authenticated Endpoints
 
+Served by the hosted service at https://md.page.
 All require \`Authorization: Bearer <api-key>\` header.
 
 #### POST /api/pages — Create permanent page
@@ -788,6 +792,7 @@ agentReady.get("/openapi.json", (c) => {
         },
       },
       "/api/pages": {
+        servers: [{ url: "https://md.page", description: "Hosted service" }],
         get: {
           operationId: "listPages",
           summary: "List permanent pages",
@@ -849,6 +854,7 @@ agentReady.get("/openapi.json", (c) => {
         },
       },
       "/api/pages/{slug}": {
+        servers: [{ url: "https://md.page", description: "Hosted service" }],
         put: {
           operationId: "updatePage",
           summary: "Update permanent page",
@@ -887,6 +893,7 @@ agentReady.get("/openapi.json", (c) => {
         },
       },
       "/api/keys": {
+        servers: [{ url: "https://md.page", description: "Hosted service" }],
         get: {
           operationId: "listKeys",
           summary: "List API keys",
@@ -1055,6 +1062,7 @@ No authentication or API key is required. Pages expire after 24 hours.
 
 ## Authenticated API (permanent pages)
 
+Served by the hosted service at https://md.page.
 Users with Google OAuth sign-in get permanent pages at username.md.page.
 Requires API key (Authorization: Bearer mdp_...).
 

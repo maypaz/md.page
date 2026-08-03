@@ -46,15 +46,9 @@ export function extractMeta(markdown: string): { title: string; description: str
   return { title, description };
 }
 
-export async function hashKey(key: string): Promise<string> {
-  const data = new TextEncoder().encode(key);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 export function emit(env: Env, event: string, detail = "", extra = "") {
   try {
-    env.ANALYTICS.writeDataPoint({
+    env.ANALYTICS?.writeDataPoint({
       blobs: [event, detail, extra],
       indexes: [event],
     });

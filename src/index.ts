@@ -5,13 +5,10 @@ import type { Env, PageData } from "./types";
 import { generateId, extractMeta, emit, escapeHtml } from "./utils";
 import { FAVICON_SVG, CLAUDE_LOGO_SVG, CURSOR_LOGO_SVG, OPENCLAW_LOGO_SVG, NANOCLAW_LOGO_SVG, LOGO_SVG, OG_IMAGE_PNG_B64 } from "./assets";
 import { renderOgPng, renderLandingOgPng } from "./og";
-import { pageTemplate, expiredPageHtml, landingPageHtml, apiDocsPageHtml, privacyPageHtml, loginPageHtml } from "./templates";
-import { auth, getUserFromCookie } from "./auth";
-import { api } from "./api";
-import { extractSubdomain, subdomainApp } from "./subdomain";
+import { pageTemplate, expiredPageHtml, landingPageHtml, apiDocsPageHtml, privacyPageHtml } from "./templates";
 import { agentReady, LANDING_PAGE_MARKDOWN } from "./agent-ready";
 
-export { generateId, escapeHtml, stripMarkdownInline, extractMeta, hashKey } from "./utils";
+export { generateId, escapeHtml, stripMarkdownInline, extractMeta } from "./utils";
 export { wrapText, parseMarkdownBlocks, generateOgSvg } from "./og";
 
 type HonoEnv = { Bindings: Env };
@@ -53,27 +50,31 @@ app.notFound((c) => {
     documentation_url: "https://md.page/docs",
     available_endpoints: {
       publish: "POST /api/publish",
-      pages: "GET/POST /api/pages",
-      keys: "GET/POST /api/keys",
       openapi: "GET /openapi.json",
       llms_txt: "GET /llms.txt",
+      pages: "GET/POST https://md.page/api/pages (hosted service)",
+      keys: "GET/POST https://md.page/api/keys (hosted service)",
     },
   }, 404);
 });
 
-// Subdomain routing — intercept requests to username.md.page
-// Let /api/* and /auth/* fall through to the main app so they work from subdomains
-app.use("*", async (c, next) => {
-  const host = c.req.header("host") || "";
-  const username = extractSubdomain(host);
-  const path = new URL(c.req.url).pathname;
-  if (username && !path.startsWith("/api/") && !path.startsWith("/auth/") && !path.startsWith("/favicon") && !path.startsWith("/logo") && !path.startsWith("/og/")) {
-    const req = new Request(c.req.raw);
-    req.headers.set("x-subdomain-user", username);
-    return subdomainApp.fetch(req, c.env);
-  }
-  await next();
-});
+// Accounts, permanent pages, and API keys are served by the hosted md.page.
+// Answer these routes with a pointer so clients and agents get redirected
+// instead of a bare 404.
+const HOSTED_ORIGIN = "https://md.page";
+for (const path of ["/api/me", "/api/keys", "/api/keys/*", "/api/pages", "/api/pages/*"]) {
+  app.all(path, (c) => {
+    const target = `${HOSTED_ORIGIN}${new URL(c.req.url).pathname}`;
+    return c.json({
+      error: "HOSTED_SERVICE_ONLY",
+      message: "Accounts, permanent pages, and API keys are provided by the hosted md.page service",
+      hint: `Call this endpoint on the hosted service instead: ${target} (Authorization: Bearer mdp_...). Anonymous publishing works here via POST /api/publish.`,
+      documentation_url: "https://md.page/docs",
+      hosted_endpoint: target,
+    }, 404);
+  });
+}
+app.get("/login", (c) => c.redirect(`${HOSTED_ORIGIN}/login`, 302));
 
 // CORS for API routes
 app.use("/api/*", cors({
@@ -167,34 +168,6 @@ app.post("/api/publish", async (c) => {
   }
 });
 
-// Gate all v2 auth routes behind feature flag
-app.use("/auth/*", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.json({
-    error: "NOT_AVAILABLE",
-    message: "Authentication is not yet enabled",
-    hint: "Use the anonymous API (POST /api/publish) which requires no authentication. Check https://md.page/docs for details.",
-    documentation_url: "https://md.page/docs",
-    anonymous_api: "POST /api/publish — no auth required",
-  }, 404);
-  await next();
-});
-app.route("/auth", auth);
-
-// Gate authenticated API routes behind feature flag
-app.use("/api/me", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "NOT_AVAILABLE", message: "This feature is not yet available", hint: "Check back later or visit https://md.page/docs for current API capabilities." }, 404);
-  await next();
-});
-app.use("/api/keys/*", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "NOT_AVAILABLE", message: "This feature is not yet available", hint: "Check back later or visit https://md.page/docs for current API capabilities." }, 404);
-  await next();
-});
-app.use("/api/pages/*", async (c, next) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.json({ error: "NOT_AVAILABLE", message: "This feature is not yet available", hint: "Check back later or visit https://md.page/docs for current API capabilities." }, 404);
-  await next();
-});
-app.route("/api", api);
-
 // SVG assets
 const svgAssets: Record<string, string> = {
   "/favicon.svg": FAVICON_SVG,
@@ -210,8 +183,9 @@ for (const [path, svg] of Object.entries(svgAssets)) {
   });
 }
 
-// Landing page video (served from R2)
+// Landing page video (served from R2; bucket is optional for self-hosts)
 app.get("/lp.mp4", async (c) => {
+  if (!c.env.ASSETS_BUCKET) return c.text("Not found", 404);
   const object = await c.env.ASSETS_BUCKET.get("lp.mp4");
   if (!object) return c.text("Not found", 404);
   return c.body(object.body as ReadableStream, { headers: { "Content-Type": "video/mp4", "Cache-Control": "public, max-age=86400" } });
@@ -275,11 +249,11 @@ app.get("/", (c) => {
       url: url.origin,
       api: {
         publish: { method: "POST", url: `${url.origin}/api/publish`, auth: "none", body: { markdown: "string (required)" }, response: { url: "string", expires_at: "string (ISO 8601)" } },
-        pages: { method: "POST/GET/PUT/DELETE", url: `${url.origin}/api/pages`, auth: "Bearer <api-key>" },
-        keys: { method: "POST/GET", url: `${url.origin}/api/keys`, auth: "Bearer <api-key>" },
+        pages: { method: "POST/GET/PUT/DELETE", url: "https://md.page/api/pages", auth: "Bearer <api-key>", note: "hosted service" },
+        keys: { method: "POST/GET", url: "https://md.page/api/keys", auth: "Bearer <api-key>", note: "hosted service" },
       },
-      auth: { anonymous: "No auth required for POST /api/publish", authenticated: "Google OAuth sign-in, then use API keys (Authorization: Bearer mdp_...)" },
-      capabilities: ["Markdown to HTML", "Shareable URLs", "24h anonymous pages", "Permanent pages with subdomains", "Mermaid diagrams", "OG images", "MCP server", "REST API"],
+      auth: { anonymous: "No auth required for POST /api/publish", authenticated: "Google OAuth sign-in at https://md.page, then use API keys (Authorization: Bearer mdp_...)" },
+      capabilities: ["Markdown to HTML", "Shareable URLs", "24h anonymous pages", "Permanent pages with subdomains (hosted service)", "Mermaid diagrams", "OG images", "MCP server", "REST API"],
       integrations: { mcp: "npx -y mdpage-mcp", skill: "npx skills add maypaz/md.page", openapi: `${url.origin}/openapi.json` },
       links: { docs: `${url.origin}/docs`, privacy: `${url.origin}/privacy`, github: "https://github.com/maypaz/md.page", llms_txt: `${url.origin}/llms.txt` },
     }, 200, { "Cache-Control": "public, max-age=3600" });
@@ -303,39 +277,6 @@ app.get("/", (c) => {
 app.get("/privacy", (c) => {
   const url = new URL(c.req.url);
   return c.html(privacyPageHtml(url.origin));
-});
-
-// Login page
-app.get("/login", async (c) => {
-  if (c.env.AUTH_ENABLED !== "true") return c.text("Coming soon", 404);
-  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
-  if (user) return c.redirect(`https://${user.username}.md.page`);
-  return c.html(loginPageHtml(new URL(c.req.url).origin));
-});
-
-// Redirect /docs/* to subdomain
-app.get("/docs/view/:slug", async (c) => {
-  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
-  if (!user) return c.redirect("/login");
-  return c.redirect(`https://${user.username}.md.page/${c.req.param("slug")}`, 302);
-});
-
-app.get("/docs/edit/:slug", async (c) => {
-  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
-  if (!user) return c.redirect("/login");
-  return c.redirect(`https://${user.username}.md.page/${c.req.param("slug")}/edit`, 302);
-});
-
-app.get("/docs/settings", async (c) => {
-  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
-  if (!user) return c.redirect("/login");
-  return c.redirect(`https://${user.username}.md.page/settings`, 302);
-});
-
-app.get("/docs/new", async (c) => {
-  const user = await getUserFromCookie(c.env.DB, c.req.header("cookie") ?? null);
-  if (!user) return c.redirect("/login");
-  return c.redirect(`https://${user.username}.md.page/new`, 302);
 });
 
 app.get("/docs", (c) => {
@@ -368,8 +309,4 @@ app.get("/:id{[a-zA-Z0-9]{6}}", async (c) => {
 
 export default {
   fetch: app.fetch,
-  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
-    // Clean up expired sessions
-    await env.DB.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')").run();
-  },
 };

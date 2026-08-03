@@ -1,14 +1,11 @@
 export interface Env {
   PAGES: KVNamespace;
-  ANALYTICS: AnalyticsEngineDataset;
-  // Optional so local dev / tests work without the bindings.
+  // Everything below is optional so local dev, tests, and minimal
+  // self-hosted deployments work with just the PAGES KV namespace.
+  ANALYTICS?: AnalyticsEngineDataset;
   PUBLISH_LIMITER?: RateLimit;
   PUBLISH_GLOBAL_LIMITER?: RateLimit;
-  ASSETS_BUCKET: R2Bucket;
-  DB: D1Database;
-  GOOGLE_CLIENT_ID: string;
-  GOOGLE_CLIENT_SECRET: string;
-  AUTH_ENABLED: string; // "true" or "false"
+  ASSETS_BUCKET?: R2Bucket;
 }
 
 export interface PageData {
