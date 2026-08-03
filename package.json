@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "wrangler dev --remote",
+    "dev": "wrangler dev",
     "deploy": "wrangler r2 object put md-page-assets/lp.mp4 --file assets/lp.mp4 --content-type video/mp4 && wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -36,3 +36,17 @@ bucket_name = "" # Run: npx wrangler r2 bucket create md-page-assets
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
 dataset = "md_page_events"
+
+# Optional: worker-level rate limiting on anonymous publishes. The worker runs
+# fine without these bindings (useful for local dev and tests).
+# [[unsafe.bindings]]
+# name = "PUBLISH_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1001"
+# simple = { limit = 30, period = 60 }   # per-IP
+
+# [[unsafe.bindings]]
+# name = "PUBLISH_GLOBAL_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1002"
+# simple = { limit = 500, period = 60 }  # shared global counter

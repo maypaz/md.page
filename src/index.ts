@@ -107,8 +107,36 @@ app.get("/api/publish", (c) => {
 });
 
 // POST /api/publish — create a page
-// Rate limiting handled by Cloudflare WAF rule (10 req / 10s per IP)
+// Worker-level rate limiting: short-window edge/WAF rules can miss slow-paced
+// floods, so a 60s counting window backs them up. Bindings are optional so
+// local dev still works.
 app.post("/api/publish", async (c) => {
+  if (c.env.PUBLISH_LIMITER) {
+    const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+    const { success } = await c.env.PUBLISH_LIMITER.limit({ key: ip });
+    if (!success) {
+      emit(c.env, "publish_rate_limited", "per_ip");
+      return c.json({
+        error: "RATE_LIMITED",
+        message: "Too many publishes from this IP",
+        hint: "Wait a minute and try again.",
+      }, 429, { "Retry-After": "60" });
+    }
+  }
+
+  // Soft global cap — same key for every request so they share a counter.
+  if (c.env.PUBLISH_GLOBAL_LIMITER) {
+    const { success } = await c.env.PUBLISH_GLOBAL_LIMITER.limit({ key: "global" });
+    if (!success) {
+      emit(c.env, "publish_rate_limited", "global");
+      return c.json({
+        error: "RATE_LIMITED",
+        message: "Service is temporarily over capacity",
+        hint: "Try again in a minute.",
+      }, 429, { "Retry-After": "60" });
+    }
+  }
+
   try {
     const body = await c.req.json<{ markdown: string }>();
 

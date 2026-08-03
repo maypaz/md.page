@@ -1,6 +1,9 @@
 export interface Env {
   PAGES: KVNamespace;
   ANALYTICS: AnalyticsEngineDataset;
+  // Optional so local dev / tests work without the bindings.
+  PUBLISH_LIMITER?: RateLimit;
+  PUBLISH_GLOBAL_LIMITER?: RateLimit;
   ASSETS_BUCKET: R2Bucket;
   DB: D1Database;
   GOOGLE_CLIENT_ID: string;
