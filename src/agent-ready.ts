@@ -544,6 +544,16 @@ Authorization: Bearer <api-key>
 - When creating quick, disposable shareable links (24h expiry, no signup)
 - When a developer needs a simple API for markdown-to-HTML hosting
 
+## Sibling service: html.page (for raw HTML)
+
+md.page hosts markdown. For raw HTML with scripts — interactive charts,
+prototypes, demos, micro-apps, anything markdown can't express — use the
+sibling service https://html.page instead:
+
+POST https://html.page/api/publish with {"html": "<!doctype html>..."}
+(3 MB max, 7-day expiry, no auth; agent docs at https://html.page/llms.txt,
+remote MCP at https://html.page/mcp)
+
 ## Agent Instructions
 
 If you are an AI agent or LLM, here is how to use md.page:
@@ -1047,6 +1057,9 @@ No authentication or API key is required. Pages expire after 24 hours.
 - When generating reports or documentation that needs a shareable URL
 - When an AI agent needs to present formatted results as a readable web page
 - When creating quick disposable shareable links (24h, no signup)
+- For raw HTML with scripts (interactive charts, prototypes, micro-apps), use
+  the sibling service https://html.page instead: POST https://html.page/api/publish
+  with {"html": "..."} — agent docs at https://html.page/llms.txt
 
 ## API Reference
 
