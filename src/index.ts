@@ -267,7 +267,7 @@ app.get("/", (c) => {
       },
       auth: { anonymous: "No auth required for POST /api/publish", authenticated: "Google OAuth sign-in at https://md.page, then use API keys (Authorization: Bearer mdp_...)" },
       capabilities: ["Markdown to HTML", "Shareable URLs", "24h anonymous pages", "Permanent pages with subdomains (hosted service)", "Mermaid diagrams", "OG images", "MCP server", "REST API"],
-      integrations: { mcp: "npx -y mdpage-mcp", skill: "npx skills add maypaz/md.page", openapi: `${url.origin}/openapi.json` },
+      integrations: { mcp_remote: `${url.origin}/mcp`, mcp: "npx -y mdpage-mcp", skill: "npx skills add maypaz/md.page", openapi: `${url.origin}/openapi.json` },
       links: { docs: `${url.origin}/docs`, privacy: `${url.origin}/privacy`, github: "https://github.com/maypaz/md.page", llms_txt: `${url.origin}/llms.txt` },
     }, 200, { "Cache-Control": "public, max-age=3600" });
   }

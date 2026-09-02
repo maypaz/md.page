@@ -278,7 +278,8 @@ agentReady.get("/.well-known/agent.json", (c) => {
     ],
     instructions: `POST ${origin}/api/publish with {"markdown": "..."} — returns {"url": "...", "expires_at": "..."}. No auth required.`,
     api: `${origin}/openapi.json`,
-    mcp: "npx -y mdpage-mcp",
+    mcp: `${origin}/mcp`,
+    mcp_local: "npx -y mdpage-mcp",
     docs: `${origin}/docs`,
     llms_txt: `${origin}/llms.txt`,
   }, 200, {
@@ -331,7 +332,8 @@ const mcpDiscoveryHandler = (c: any) => {
     description: "Convert Markdown to shareable web pages. Publish any markdown content as a beautiful, hosted HTML page with a shareable URL.",
     version: "1.1.0",
     server_card: `${origin}/.well-known/mcp/server-card.json`,
-    endpoint: "npx -y mdpage-mcp",
+    endpoint: `${origin}/mcp`,
+    transport: "streamable-http",
     documentation: `${origin}/docs`,
     openapi: `${origin}/openapi.json`,
     tools: ["publish_markdown"],
@@ -357,7 +359,9 @@ agentReady.get("/.well-known/mcp/server-card.json", (c) => {
       instructions: "Use publish_markdown to convert markdown content into a shareable web page. No authentication required.",
     },
     serverUrl: `${origin}/.well-known/mcp/server-card.json`,
-    endpoint: "npx -y mdpage-mcp",
+    endpoint: `${origin}/mcp`,
+    transport: "streamable-http",
+    install: { npm: "npx -y mdpage-mcp" },
     capabilities: {
       tools: [
         {
@@ -453,6 +457,8 @@ npx skills add maypaz/md.page
 
 ## MCP Server
 
+Remote (streamable HTTP): https://md.page/mcp — or locally:
+
 \`\`\`json
 {
   "mcpServers": {
@@ -530,7 +536,8 @@ Authorization: Bearer <api-key>
 
 ## Integration
 
-- MCP Server: npx -y mdpage-mcp
+- Remote MCP (streamable HTTP, works as a Claude.ai custom connector): ${origin}/mcp
+- Local MCP Server: npx -y mdpage-mcp
 - Claude Code Skill: npx skills add maypaz/md.page
 - OpenAPI Spec: ${origin}/openapi.json
 - API Documentation: ${origin}/docs
@@ -562,7 +569,7 @@ If you are an AI agent or LLM, here is how to use md.page:
 2. The response includes a "url" field with the shareable link and an "expires_at" timestamp (24 hours from creation).
 3. No authentication, API key, or signup is required for anonymous pages.
 4. For permanent pages, the user must sign in with Google OAuth at https://md.page and create an API key there.
-5. Use the MCP server (npx -y mdpage-mcp) for native tool integration, or the Claude Code skill (npx skills add maypaz/md.page).
+5. For native tool integration, connect to the remote MCP server at ${origin}/mcp (streamable HTTP — add it as a custom connector in Claude.ai to publish from environments whose sandbox cannot reach md.page directly), run the local MCP server (npx -y mdpage-mcp), or use the Claude Code skill (npx skills add maypaz/md.page).
 6. Maximum content size is 500KB. Rate limit is 10 requests per 10 seconds per IP.
 
 ## Links
@@ -625,7 +632,8 @@ ${origin}/openapi.json
 
 ## MCP Server
 
-npx -y mdpage-mcp
+Remote (streamable HTTP): ${origin}/mcp
+Local: npx -y mdpage-mcp
 `;
   return c.text(body, 200, {
     "Content-Type": "text/plain; charset=utf-8",
@@ -700,7 +708,19 @@ Response: {"keys": [{"id": "...", "name": "...", "created_at": "..."}]}
 
 ## MCP Server
 
-Install and configure the MCP server for AI agent integration:
+Remote server (streamable HTTP — no install; also works as a Claude.ai custom connector):
+
+\`\`\`json
+{
+  "mcpServers": {
+    "mdpage": {
+      "url": "${origin}/mcp"
+    }
+  }
+}
+\`\`\`
+
+Or run it locally over stdio:
 
 \`\`\`json
 {
@@ -798,6 +818,21 @@ agentReady.get("/openapi.json", (c) => {
             "400": { description: "Invalid request", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             "413": { description: "Content too large", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
             "429": { description: "Rate limit exceeded", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          },
+        },
+      },
+      "/mcp": {
+        post: {
+          operationId: "mcp",
+          summary: "MCP endpoint (streamable HTTP)",
+          description: "Model Context Protocol server (JSON-RPC over streamable HTTP, stateless). Exposes the publish_markdown tool. Connect any remote MCP client — e.g. add as a custom connector in Claude.ai. Server card: /.well-known/mcp/server-card.json",
+          externalDocs: { url: `${origin}/.well-known/mcp/server-card.json`, description: "MCP server card" },
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", description: "JSON-RPC 2.0 message" } } },
+          },
+          responses: {
+            "200": { description: "JSON-RPC response (application/json or text/event-stream)" },
           },
         },
       },
@@ -988,6 +1023,8 @@ agentReady.get("/developers", (c) => {
     },
     integrations: {
       mcp_server: {
+        remote: `${origin}/mcp`,
+        transport: "streamable-http",
         package: "mdpage-mcp",
         install: "npx -y mdpage-mcp",
         server_card: `${origin}/.well-known/mcp/server-card.json`,
@@ -1069,7 +1106,8 @@ No authentication or API key is required. Pages expire after 24 hours.
 
 ## Integration options
 
-- **MCP Server:** npx -y mdpage-mcp
+- **Remote MCP:** ${origin}/mcp (streamable HTTP — add as a Claude.ai custom connector to publish from sandboxed environments)
+- **Local MCP Server:** npx -y mdpage-mcp
 - **Claude Code Skill:** npx skills add maypaz/md.page
 - **REST API:** POST ${origin}/api/publish
 
@@ -1114,7 +1152,9 @@ agentReady.get("/.well-known/server-card.json", (c) => {
       instructions: "Use publish_markdown to convert markdown content into a shareable web page. No authentication required.",
     },
     serverUrl: `${origin}/.well-known/mcp/server-card.json`,
-    endpoint: "npx -y mdpage-mcp",
+    endpoint: `${origin}/mcp`,
+    transport: "streamable-http",
+    install: { npm: "npx -y mdpage-mcp" },
     capabilities: {
       tools: [
         {
@@ -1358,6 +1398,20 @@ Returns:
 \`\`\`
 
 ### MCP Server
+
+Remote (streamable HTTP — also works as a Claude.ai custom connector):
+
+\`\`\`json
+{
+  "mcpServers": {
+    "mdpage": {
+      "url": "https://md.page/mcp"
+    }
+  }
+}
+\`\`\`
+
+Or locally over stdio:
 
 \`\`\`json
 {

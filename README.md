@@ -51,7 +51,21 @@ npx clawhub@latest install publish-to-mdpage
 
 ### MCP Server
 
-For agents that support [MCP](https://modelcontextprotocol.io/) (Cursor, Claude Desktop, VS Code, and others), add md.page as a tool server:
+For agents that support [MCP](https://modelcontextprotocol.io/), add md.page as a tool server.
+
+**Remote (streamable HTTP)** — no install, and it works as a [Claude.ai custom connector](https://claude.ai) (Settings → Connectors → Add custom connector → `https://md.page/mcp`), so the web app can publish even though its sandbox can't reach md.page directly:
+
+```json
+{
+  "mcpServers": {
+    "mdpage": {
+      "url": "https://md.page/mcp"
+    }
+  }
+}
+```
+
+**Local (stdio)** — for Cursor, Claude Desktop, VS Code, and others:
 
 ```json
 {

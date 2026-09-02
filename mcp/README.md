@@ -4,7 +4,25 @@ MCP server for [md.page](https://md.page) — give AI agents the ability to publ
 
 ## Quick Setup
 
-Add to your MCP client config:
+Prefer the hosted remote server if your client supports streamable HTTP — nothing to install:
+
+### Claude.ai (web) — custom connector
+
+Settings → Connectors → **Add custom connector** → `https://md.page/mcp`. This is the only way to publish from the Claude.ai web app: its code sandbox cannot reach md.page directly, but connector traffic can.
+
+### Any remote MCP client
+
+```json
+{
+  "mcpServers": {
+    "mdpage": {
+      "url": "https://md.page/mcp"
+    }
+  }
+}
+```
+
+Or run the server locally over stdio:
 
 ### Cursor
 
