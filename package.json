@@ -28,8 +28,12 @@
   },
   "dependencies": {
     "@cf-wasm/resvg": "^0.3.3",
+    "@hono/mcp": "^0.3.2",
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/markdown-it": "^14.1.2",
     "hono": "^4.12.12",
-    "markdown-it": "^14.1.1"
+    "markdown-it": "^14.1.1",
+    "zod": "^3.25.76"
   }
 }

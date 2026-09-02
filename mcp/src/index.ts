@@ -28,6 +28,9 @@ interface ErrorResponse {
 // MCP Apps: UI resource for the publish tool
 const publishResourceUri = "ui://publish-markdown/app.html";
 
+// KEEP IN SYNC with PUBLISH_APP_HTML in src/mcp.ts (the remote /mcp server).
+// This package builds standalone, so the HTML is duplicated rather than
+// imported.
 const PUBLISH_APP_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,6 +97,9 @@ registerAppTool(
         body: JSON.stringify({ markdown }),
       });
 
+      // KEEP IN SYNC with the result-text and error mapping in src/mcp.ts —
+      // the app HTML regex-parses "URL: " and "Expires: " from the success
+      // text, and both servers must present identical results to agents.
       if (!response.ok) {
         let errorMessage: string;
         try {

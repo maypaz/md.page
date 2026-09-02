@@ -7,6 +7,7 @@ import { FAVICON_SVG, CLAUDE_LOGO_SVG, CURSOR_LOGO_SVG, OPENCLAW_LOGO_SVG, NANOC
 import { renderOgPng, renderLandingOgPng } from "./og";
 import { pageTemplate, expiredPageHtml, landingPageHtml, apiDocsPageHtml, privacyPageHtml } from "./templates";
 import { agentReady, LANDING_PAGE_MARKDOWN } from "./agent-ready";
+import { createMcpHandler } from "./mcp";
 
 export { generateId, escapeHtml, stripMarkdownInline, extractMeta } from "./utils";
 export { wrapText, parseMarkdownBlocks, generateOgSvg } from "./og";
@@ -50,6 +51,7 @@ app.notFound((c) => {
     documentation_url: "https://md.page/docs",
     available_endpoints: {
       publish: "POST /api/publish",
+      mcp: "POST /mcp (Model Context Protocol, streamable HTTP)",
       openapi: "GET /openapi.json",
       llms_txt: "GET /llms.txt",
       pages: "GET/POST https://md.page/api/pages (hosted service)",
@@ -81,6 +83,14 @@ app.use("/api/*", cors({
   origin: "*",
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization"],
+}));
+
+// CORS for the MCP endpoint (streamable HTTP clients send/read MCP headers)
+app.use("/mcp", cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID"],
+  exposeHeaders: ["Mcp-Session-Id"],
 }));
 
 // POST /api/event — client-side event tracking
@@ -309,6 +319,11 @@ app.get("/:id{[a-zA-Z0-9]{6}}", async (c) => {
     "Cache-Control": "no-store",
   });
 });
+
+// Remote MCP server. Registered last so tools dispatching via app.request()
+// see the complete route table. Tools MUST go through app.request — never
+// call KV or publish logic directly — so rate limits and analytics apply.
+app.all("/mcp", createMcpHandler((c) => (url, init) => Promise.resolve(app.request(url, init, c.env, c.executionCtx))));
 
 export default {
   fetch: app.fetch,
