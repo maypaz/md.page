@@ -580,6 +580,36 @@ describe("Worker", () => {
       expect(stored.html).toContain("<code");
       expect(stored.html).not.toContain('class="mermaid"');
     });
+
+    it("loads panzoom script when page contains mermaid blocks", async () => {
+      await env.PAGES.put("pZm001", JSON.stringify({ html: '<pre class="mermaid">graph TD\n  A--&gt;B\n</pre>\n', title: "Test", description: "Test" }));
+      const res = await exports.default.fetch(new Request("https://md.page/pZm001"));
+      const html = await res.text();
+      expect(html).toContain("panzoom");
+    });
+
+    it("does not load panzoom script on non-mermaid pages", async () => {
+      await env.PAGES.put("nPz001", JSON.stringify({ html: "<p>No diagrams here</p>\n", title: "Test", description: "Test" }));
+      const res = await exports.default.fetch(new Request("https://md.page/nPz001"));
+      const html = await res.text();
+      expect(html).not.toContain("panzoom");
+    });
+
+    it("includes fullscreen overlay styles on mermaid pages", async () => {
+      await env.PAGES.put("fSs001", JSON.stringify({ html: '<pre class="mermaid">graph TD\n  A--&gt;B\n</pre>\n', title: "Test", description: "Test" }));
+      const res = await exports.default.fetch(new Request("https://md.page/fSs001"));
+      const html = await res.text();
+      expect(html).toContain("mermaid-fs-overlay");
+      expect(html).toContain("mermaid-wrapper");
+      expect(html).toContain("mermaid-btn-bar");
+    });
+
+    it("does not include fullscreen styles on non-mermaid pages", async () => {
+      await env.PAGES.put("nFs001", JSON.stringify({ html: "<p>Plain page</p>\n", title: "Test", description: "Test" }));
+      const res = await exports.default.fetch(new Request("https://md.page/nFs001"));
+      const html = await res.text();
+      expect(html).not.toContain("mermaid-fs-overlay");
+    });
   });
 
   // -- Dynamic OG images ---------------------------------------------------
